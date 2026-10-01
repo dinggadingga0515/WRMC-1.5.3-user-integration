@@ -22,13 +22,13 @@ C. 사용자 통합 1.5.3
 - 사용자 1.4.1을 BASE로 원작자 1.5.x 장점을 선별 forward-port한 결과.
 - 이 인수인계 이후 이 버전을 “1.5.3”으로 부른다.
 
-중요한 메타데이터 불일치:
-- 현재 실제 파일 내부 @version = 1.5.2
-- 현재 실제 파일 내부 SCRIPT_VERSION = 1.5.2
-- 파일명도 WRMC_1.5.2_FULL_userpatch_integrated_20261001_2115.txt
-- 사용자 지시에 따라 의미상/작업상 버전은 이제 1.5.3.
-- 다음 정식 코드 패치 또는 패키징 시 @version / SCRIPT_VERSION / patch roadmap 표기를 1.5.3으로 정규화해야 한다.
-- 단, 단순 보고서 작업 때문에 지금 원본 소스를 임의 수정하지는 말 것.
+버전 메타데이터 정규화 완료:
+- 현재 실제 파일 내부 @version = 1.5.3
+- 현재 실제 파일 내부 SCRIPT_VERSION = 1.5.3
+- SCRIPT_PATCH = 20261001 2145 KST
+- USER-INTEGRATION PATCH ROADMAP = 1.5.3
+- 원작자 기능을 가리키는 `upstream 1.5.2` 표기는 역사적/기능 참조이므로 유지.
+- 정규화는 runtime 기능 로직을 변경하지 않았고, 변경 후 전체 회귀를 다시 통과했다.
 
 ======================================================================
 1. 정확한 소스 식별
@@ -52,13 +52,13 @@ SHA-256:
 
 [BASE-153]
 현재 파일:
-WRMC_1.5.2_FULL_userpatch_integrated_20261001_2115.txt
-작업상 이름:
+WRMC_1.5.3_FULL_userpatch_integrated_20261001_2145.txt
+정식 작업명:
 WRMC 1.5.3
-bytes: 1,886,142
+bytes: 1,886,256
 lines: 18,318
 SHA-256:
-082da49ffdfd14100f299cb6ef2e77da0cfc14bf9198934da15419a9f71fb3bf
+90c7d5e776eb646382fd3d6d2c5df7d398af71e6cfe63624b7c9241d0009e78f
 
 다음 패치의 기본 BASE는 [BASE-153].
 원작자 1.5.2를 BASE로 되돌리지 말 것.
@@ -520,7 +520,7 @@ MutationObserver 증가:
 ======================================================================
 
 최종 BASE-153 SHA:
-082da49ffdfd14100f299cb6ef2e77da0cfc14bf9198934da15419a9f71fb3bf
+90c7d5e776eb646382fd3d6d2c5df7d398af71e6cfe63624b7c9241d0009e78f
 
 파일 검증:
 - UTF-8 BOM PASS
@@ -616,9 +616,10 @@ STEP 1. BASE 검증
 - 사용자가 별도 최신 파일을 준 경우 그 파일을 새 BASE로 명시.
 
 STEP 2. 버전 metadata
-- 사용자 지시상 현재 계통명은 1.5.3.
-- 실제 소스 수정 작업을 시작할 때 @version / SCRIPT_VERSION을 1.5.3으로 맞출지 사용자 요구와 현재 배포 계획에 따라 정리.
-- 패치 시각은 실제 작업 KST.
+- 현재 @version / SCRIPT_VERSION / USER-INTEGRATION ROADMAP은 1.5.3으로 정규화 완료.
+- 현재 SCRIPT_PATCH = 20261001 2145 KST.
+- 다음 코드 수정 때만 실제 작업 시각으로 SCRIPT_PATCH를 갱신.
+- `upstream 1.5.2` 같은 원작자 참조를 사용자 버전 표기라고 오인해 바꾸지 말 것.
 
 STEP 3. upstream이 새로 나온 경우
 예: 원작자 1.5.3/1.6.0
@@ -740,8 +741,8 @@ T05. Vertex service account persistence
 - 즉흥 변경 금지; 독립 설계/회귀 필요.
 
 T06. version metadata
-- 작업상 1.5.3인데 현재 code header 1.5.2.
-- 다음 코드 release에서 반드시 정리할 기술적 혼동 포인트.
+- 2026-10-01 21:45 KST에 @version / SCRIPT_VERSION / roadmap를 1.5.3으로 정규화 완료.
+- 남아 있는 `1.5.2` 문자열은 원작자 upstream 기능/버전을 가리키는 참조인지 먼저 판별할 것.
 
 ======================================================================
 12. 절대 하지 말 것
@@ -792,7 +793,7 @@ T06. version metadata
 
 - 작업지시내용 = 사용자 1.4.1, 원작자 1.5.2, 사용자 통합 1.5.3 비교 결과를 다음 작업자가 AI에 재주입해 후속 패치에 사용할 수 있는 AI용 TXT 인수인계서로 작성.
 - 작업수행결과 = 정확한 source identity/hash, lineage, 1.5.3 golden contracts K01~K20, upstream port P10~P12, reject 목록 X01~X18, static baseline, 기존 regression/soak, 남은 G10B, 후속 patch procedure, 금지사항과 기술부채를 문서화함.
-- 지침대조결과 = 사용자 1.4.1과 원작자 1.5.2 소유권/계통을 분리하고, 현재 통합본은 작업상 1.5.3이나 소스 metadata는 1.5.2라는 불일치를 명시함. 검증되지 않은 live 항목은 PASS 처리하지 않음.
+- 지침대조결과 = 사용자 1.4.1과 원작자 1.5.2 소유권/계통을 분리하고, 현재 통합본의 metadata가 1.5.3으로 정규화되었음을 반영하고, upstream 1.5.2 참조와 사용자 버전 표기를 구분함. 검증되지 않은 live 항목은 PASS 처리하지 않음.
 - 임의수행 여부 = 소스 수정 없음. 인수인계 문서 작성만 수행.
 - 누락 여부 = 다음 AI가 재작업 없이 베이스 선택, merge 방향, 보존계약, 회귀기준, 남은 작업을 판단할 수 있도록 핵심 기술정보를 포함함.
 - 최종판정 = 이상 없음

@@ -1,0 +1,1075 @@
+﻿WRMC 1.4.1 / 원작자 1.5.2 / 사용자 1.5.4 비교 보고서
+쉬운 설명판 · 원작자 전달용
+작성일: 2026-10-02
+
+목적
+이 문서는 기존 「WRMC 1.4.1 / 원작자 1.5.2 / 사용자 통합 1.5.3 비교 보고서」의 형식과 설명 방식을 유지하면서,
+현재 사용자 계통을 1.5.4 기준으로 갱신한 인간용 비교 보고서다.
+
+코드를 직접 읽지 않는 사람도
+“원작자 1.5.2와 비교해 사용자 1.5.4에서 무엇이 달라졌고,
+기존 1.5.3에서 추가로 무엇을 복구·개선했는지”
+바로 이해할 수 있도록 작성한다.
+
+전문용어는 꼭 필요한 경우에만 괄호 안에 적고,
+먼저 실제 사용자 입장에서 어떤 변화인지 설명한다.
+
+중요:
+현재 비교 기준인 사용자 1.5.4 소스는
+WRMC_1.5.4_임시_patching_diagnostic_hardening_20261002_1947.txt 이다.
+@version / SCRIPT_VERSION은 1.5.4이지만 SCRIPT_STATUS는 patching이다.
+따라서 이 문서는 1.5.4의 현재 구현 내용을 설명하지만,
+실제 Crack/Tampermonkey 장기방 live soak와 사용자 확인이 끝난 FULL 완료판이라고 선언하지 않는다.
+
+======================================================================
+0. 버전의 관계부터 간단히 정리
+======================================================================
+
+[사용자 1.4.1]
+원작자 1.4 계열을 바탕으로,
+매우 긴 RP 방에서 멈춤·중복 조회·메모리 사용량 증가·잘못된 외부 결과 적용 같은 문제를
+집중적으로 손본 사용자 패치 버전이다.
+
+장점:
+- 긴 RP 로그 처리에 강함
+- 전체 로그를 반복해서 읽거나 복사하는 일을 줄임
+- 외부 재구축 결과가 현재 RP와 맞는지 엄격하게 검사
+- 취소·재시도·오류 진단이 강화됨
+
+단점:
+- 원작자 1.5.x에서 추가된 Vertex AI, Firebase App Check, 최신 UI, 새 Memory Diff가 없음
+
+
+[원작자 1.5.2]
+원작자가 1.5.0 → 1.5.1 → 1.5.2로 이어서 만든 공식 upstream 버전이다.
+
+추가된 주요 기능:
+- Firebase App Check
+- Vertex AI
+- 여러 설정창과 결과창의 UI 개선
+- 기억 비교 화면(Memory Diff)의 가독성 개선
+
+장점:
+- 최신 AI 연결 기능이 많음
+- UI가 정리됨
+- 수정 전/후 비교 화면이 읽기 쉬워짐
+
+단점:
+- 사용자 1.4.1에서 따로 고쳤던 장기방 처리·중복 전체조회·일부 무결성 보호가 그대로 들어가 있지는 않음
+
+
+[사용자 통합 1.5.3]
+사용자 1.4.1을 BASE로 두고,
+원작자 1.5.0~1.5.2의 App Check / Vertex / UI / Memory Diff 장점을
+기능 단위로 선별 이식한 통합판이다.
+
+즉:
+
+“사용자 1.4.1의 장기방 안정성 + 원작자 1.5.2의 최신 기능/UI”
+
+를 합친 것이 1.5.3이었다.
+
+
+[사용자 1.5.4]
+1.5.3을 버리고 다시 만든 버전이 아니다.
+
+1.5.3을 BASE로 유지하면서,
+통합 과정에서 빠지거나 약해졌던 일부 1.3.40 계열의 검증된 장기방/내보내기 장점을
+현재 1.5.3 구조에 맞게 선별 복구한 뒤,
+오류 진단 체계를 “오류 문구 추측”보다 “error code + 실제 관측값” 중심으로 강화한 버전이다.
+
+1.5.4에서 추가된 핵심:
+- 재구축 TXT 1/N 패키지 구조 복구
+- TXT lazy 생성과 Blob/Object URL 수명 제한
+- STORE ZIP 256 MiB 이상 사전 경고
+- 최근 50개만으로 정확히 계산 가능한 턴 수는 전체 대화 조회 생략
+- 기준점 설정 일부를 recent-first + 필요 시 physical Full Read fallback으로 변경
+- NativeBundles의 대형 RP rows를 runtime DB에 계속 저장하지 않도록 변경
+- rowWeights 기반 재분할/표시 정보 보존
+- 오류 진단을 code/evidence 우선 방식으로 개편
+- 방 revision 충돌과 오래된 저장을 구분해 안전하게 차단
+- 실제 busy blocker, 세션/빌드 범위, 반복 오류 count를 기록
+
+한 문장으로 정리하면:
+
+“1.5.3의 장기방 안정성·무결성·원작자 1.5.2 기능은 유지하면서,
+대량 재구축 출력의 메모리 비용과 일부 불필요한 전체조회,
+그리고 오류 원인 추적의 정확도를 추가로 개선한 버전”
+
+이 1.5.4다.
+
+======================================================================
+1. 먼저 가장 쉽게 보는 핵심 변화
+======================================================================
+
+기능 1. 아주 긴 RP 로그를 다룰 때 브라우저가 버벅이거나 멈출 위험
+
+사용자 1.4.1:
+- 1,200만자 이하: 전체 내용을 deep snapshot 형태로 캐시
+- 1,200만자 초과~3,600만자: 전체를 다시 깊게 복사하지 않는 가벼운 방식으로 캐시
+- 3,600만자 초과: 장기 캐시하지 않고 필요할 때 다시 읽음
+
+원작자 1.5.2:
+- 약 1,200만자를 기준으로 캐시 여부가 갈리는 단순한 구조가 중심
+- 사용자 1.4.1의 12M~36M 중간 전략과 동일하지 않음
+
+사용자 1.5.4:
+- 1.5.3이 유지하던 1.4.1의 1,200만/3,600만 구간 정책을 계속 유지
+- 1.5.4에서도 이 핵심 장기방 캐시 계약을 제거하지 않음
+
+사용자가 체감하는 변화:
+- 수천만 자 RP 방에서 전체 로그를 불필요하게 한 번 더 통째로 복사하면서 생기는
+  순간적인 메모리 급증과 GC 부담을 줄이는 방향이다.
+
+중요:
+- 3,600만자는 “RP 로그 최대 길이”가 아니다.
+- 3,600만자를 넘으면 사용을 막는 것이 아니라 “장기 캐시하지 않는다”는 기준이다.
+
+
+기능 2. 전체 RP 로그를 서버에서 읽는 속도
+
+사용자 1.4.1:
+- 정상 상황에서는 메시지를 한 번에 300개씩 읽음
+- 300개 방식이 맞지 않으면 Contents 50 → 필요 시 Crack 50 방식으로 호환 fallback
+
+원작자 1.5.2:
+- 기본적으로 50개씩 읽는 방식 중심
+
+사용자 1.5.4:
+- 1.5.3이 유지한 300개 우선 + 50개 호환 fallback 유지
+
+사용자가 체감하는 변화:
+- 같은 전체 로그를 읽을 때 서버 왕복 요청 수를 줄일 수 있다.
+
+예:
+- 메시지 60,000개라고 단순 계산하면
+  50개씩 = 약 1,200페이지
+  300개씩 = 약 200페이지
+
+실제 호출 수는 서버 응답과 fallback 여부에 따라 달라질 수 있다.
+
+
+기능 3. 서버가 잠깐 오류를 냈을 때 전체 작업이 바로 실패하는 문제
+
+사용자 1.4.1:
+- 네트워크 오류, 429, 5xx 등 일시적일 수 있는 실패에 제한된 재시도
+
+원작자 1.5.2:
+- 사용자판만큼 강화된 전체조회 재시도 계약은 없음
+
+사용자 1.5.4:
+- 기존 재시도 정책 유지
+- 무한 재시도는 하지 않음
+
+사용자가 체감하는 변화:
+- 긴 전체 로그를 읽다가 서버가 잠깐 흔들렸다는 이유만으로
+  바로 처음부터 다시 해야 하는 상황을 줄인다.
+
+
+기능 4. 서버 페이지 정보가 이상할 때 끝없이 읽는 문제
+
+사용자 1.4.1 / 1.5.3 / 1.5.4:
+- 최대 100,000개 메시지
+- 최대 1,000페이지
+- 반복 커서 차단
+- 잘못된 메시지 ID/역할/페이지 정보 검사
+
+원작자 1.5.2:
+- 일부 반복 방어는 있으나 사용자판의 전체 safety bound와 동일하지 않음
+
+사용자가 체감하는 변화:
+- 비정상 응답 때문에 무한 페이지 읽기나 무한 메모리 증가가 발생하는 일을 막는다.
+
+중요:
+100,000메시지는 정상 방을 자르기 위한 목표값이 아니라 runaway 방지용 상한이다.
+
+
+기능 5. 같은 전체 로그를 여러 기능이 동시에 읽을 때 중복 작업
+
+사용자 1.4.1:
+- 같은 방·같은 기준의 physical Full Read를 여러 논리 호출이 공유 가능
+
+원작자 1.5.2:
+- 사용자판의 전역 physical single-flight 계약과 동일하지 않음
+
+사용자 1.5.4:
+- 1.5.3의 single-flight 유지
+- 취소 중인 오래된 flight에 새 caller가 잘못 붙지 않는 race fix도 유지
+
+사용자가 체감하는 변화:
+- 기억 갱신·재구축·검증이 동시에 대화 전체를 필요로 해도
+  같은 대용량 로그를 여러 번 동시에 서버에서 읽는 일을 줄인다.
+
+
+기능 6. 전체 조회를 취소했다가 바로 다시 실행했을 때 새 작업까지 같이 취소되는 문제
+
+사용자 1.4.1:
+- 마지막 subscriber가 취소된 old flight를 map에서 먼저 분리
+- 즉시 재시도한 새 caller는 fresh physical read 시작
+
+사용자 1.5.4:
+- 이 수정 유지
+
+사용자가 체감하는 변화:
+- “취소 → 바로 다시 실행” 뒤 새 작업이 이전 취소 상태를 물려받는 문제를 방지한다.
+
+
+기능 7. 기억 주입을 준비할 때 전체 RP를 거대한 문자열로 다시 만드는 문제
+
+사용자 1.4.1:
+- 전체 원문 검증 데이터와 실제 recall에 필요한 bounded context를 분리
+- 전체 stable RP를 다시 거대한 문자열 하나로 합치지 않음
+
+사용자 1.5.4:
+- 이 구조 유지
+
+사용자가 체감하는 변화:
+- 초장기방에서 주입 준비 버튼을 눌렀을 때
+  불필요한 giant join 때문에 브라우저가 순간적으로 무거워지는 원인을 줄인다.
+
+
+기능 8. 외부 AI가 이미 분석한 JSON을 적용할 때 전체 RP를 또 요청문에 넣는 문제
+
+사용자 1.4.1:
+- 외부 결과 적용 단계에서는 전체 RP를 다시 AI 요청문으로 직렬화하지 않음
+
+사용자 1.5.4:
+- externalStageOnly 구조 유지
+
+사용자가 체감하는 변화:
+- 이미 분석이 끝난 수백만~수천만 자 원문을 적용 단계에서 또 문자열화하는 낭비를 줄인다.
+
+
+기능 9. 외부 재구축 JSON이 현재 RP와 정말 같은 원문에서 만들어졌는지 확인
+
+사용자 1.4.1 / 1.5.3 / 1.5.4:
+- 마지막 메시지 ID 확인
+- 전체 SOURCE SHA-256 확인
+- 최종 적용 직전 fresh 검증
+
+원작자 1.5.2:
+- JSON에 source 정보는 있으나 사용자판의 모든 외부 적용 경로에서
+  현재 원문과 엄격하게 대조하는 수준과 동일하지 않음
+
+사용자가 체감하는 변화:
+- 예전 RP 기준으로 만든 JSON을 현재 수정된 방에 잘못 적용하는 위험을 줄인다.
+
+
+기능 10. 같은 외부 JSON을 짧은 시간 안에 다시 검증할 때 전체 RP를 반복해서 읽는 문제
+
+사용자 1.4.1 / 1.5.4:
+- 정상 검증한 source session을 약 45초 동안 제한적으로 재사용
+- WishHistory stamp, anchor, SHA가 그대로일 때만 재사용
+
+사용자가 체감하는 변화:
+- 인물 연결 수정이나 즉시 재시도 때 동일한 전체 RP를 연속으로 다시 읽는 낭비를 줄인다.
+
+
+기능 11. 잘못된 외부 JSON 때문에 긴 RP 전체를 먼저 읽는 문제
+
+사용자 1.4.1 / 1.5.4:
+- JSON parse
+- format/version/schema
+- 로컬 semantic
+- 인물/reference preflight
+- 최근 anchor cheap check
+를 가능한 범위에서 먼저 수행
+
+그 뒤에만 expensive source read 수행
+
+사용자가 체감하는 변화:
+- 파일 자체가 틀렸는데 수천만 자 전체조회부터 수행하는 낭비를 줄인다.
+
+
+기능 12. 외부 JSON에 작은 문법/형식 오류가 있을 때 처음부터 다시 만들어야 하는 문제
+
+사용자 1.4.1 / 1.5.4:
+- 브라우저 내부 JSON repair editor
+- 최대 2,000,000자
+- 수정 뒤 동일 validator 재실행
+- 실제 SOURCE mismatch는 편집으로 우회 불가
+
+사용자가 체감하는 변화:
+- 고칠 수 있는 JSON 오류는 파일 전체를 외부 AI에서 다시 만들지 않고 수정 가능
+
+
+기능 13. 다른 작업 중이라 외부 JSON을 적용할 수 없을 때 파일을 다시 선택해야 하는 문제
+
+사용자 1.4.1 / 1.5.4:
+- busy 상태에서 가져온 raw JSON을 메모리에 유지
+- 명시적인 계속/재시도로 같은 입력을 다시 검증
+- polling 없음
+
+사용자가 체감하는 변화:
+- 대용량 JSON 파일을 매번 다시 선택하는 번거로움을 줄인다.
+
+
+기능 14. 주입 준비 중 취소
+
+사용자 1.4.1 / 1.5.4:
+- read/validate 단계에서는 취소 가능
+- room.pending/save/PATCH/apply 단계로 넘어가면 중간 취소 금지
+
+사용자가 체감하는 변화:
+- 잘못 누른 긴 준비 작업은 중단할 수 있지만,
+  실제 적용 중간에 반쪽 상태가 생기는 것은 막는다.
+
+
+기능 15. 실제 전송이 실패했는데 프로그램이 “보냈다”고 착각하는 문제
+
+사용자 1.4.1 / 1.5.4:
+- native WebSocket send가 정상 반환된 뒤에만 sendAttempted=true
+
+원작자 1.5.2 계통의 문제가 될 수 있었던 형태:
+- sendAttempted를 실제 send보다 먼저 세우는 경로
+
+사용자가 체감하는 변화:
+- 실제 전송 실패와 내부 상태의 “전송됨” 판정이 어긋날 가능성을 줄인다.
+
+
+기능 16. AI의 변경분(Delta) 결과가 특정 검증 오류로 거절됐을 때
+
+사용자 1.4.1 / 1.5.4:
+- WISH_DELTA_REJECTED일 때만
+- 전체 상태 방식으로 정확히 1회 fallback
+
+사용자가 체감하는 변화:
+- 특정 형식 오류는 한 번 자동 복구하지만
+  모든 오류를 무한 재시도하지 않는다.
+
+
+기능 17. 재구축 결과 TXT가 수백 개 생길 때 ZIP 다운로드
+
+사용자 1.4.1 / 1.5.3:
+- 개별 다운로드
+- 10개 단위 다운로드
+- STORE 방식 ZIP
+- zero-padding
+- 진행률
+- 취소
+
+사용자 1.5.4:
+- 기존 WishStoreZip 엔진을 그대로 유지
+- 구형 ZIP 엔진을 다시 가져오지 않음
+- 대신 lazy TXT도 ZIP 생성 시 필요한 순간에 materialize할 수 있도록 접합
+- 예상 원문 합계가 256 MiB 이상이면 생성 전 확인창 표시
+
+사용자가 체감하는 변화:
+- 파일이 많을 때는 ZIP 한 개로 받을 수 있고,
+- 아주 큰 ZIP을 실수로 만들기 전에 메모리 부담 경고를 한 번 더 받는다.
+
+중요:
+- STORE ZIP은 압축률을 높이는 기능이 아니다.
+- CPU 압축비용 대신 여러 TXT를 하나의 컨테이너로 묶는 것이 목적이다.
+
+
+기능 18. 오류가 났을 때 원인을 추측해서 잘못 안내하는 문제
+
+1.5.3까지:
+- Full Read 등 핵심 진단은 매우 상세했음
+- 그러나 일부 범용 오류 분류는 error.message 문자열 패턴에 의존
+
+1.5.4:
+- 명시 error.code + structured diagnostic을 최우선
+- 그 다음 HTTP status / 명시 서비스 오류
+- 그 다음 제한된 기존 패턴
+- 마지막은 “미등록 오류”로 남기고 실제 관측값 보존
+- 단어 하나가 들어갔다고 원인을 확정하지 않음
+
+사용자가 체감하는 변화:
+- “오류 문구에 비슷한 단어가 있으니 이 원인일 것”이라는 잘못된 진단 가능성을 줄인다.
+- 원인을 모르는 경우에는 모른다고 표시하면서,
+  당시의 실제 상태를 남겨 다음 분석이 가능하게 한다.
+
+
+기능 19. 창 바깥을 드래그하거나 글자를 선택했는데 편집창이 닫히는 문제
+
+사용자 1.4.1 / 1.5.4:
+- pointerdown/pointerup이 같은 backdrop에서 실제 click으로 성립할 때만 닫힘
+- 드래그/텍스트 선택/일정 거리 이동은 닫힘 처리하지 않음
+
+사용자가 체감하는 변화:
+- JSON 수정·검토·다운로드 창에서 실수로 작업창이 닫히는 위험 감소
+
+
+기능 20. Firebase App Check
+
+원작자 1.5.2:
+- 지원
+
+사용자 1.5.4:
+- 1.5.3에서 forward-port한 원작자 기능 그대로 유지
+- 진단/재구축 변경 때문에 제거하지 않음
+
+사용자가 체감하는 변화:
+- Firebase AI Logic이 App Check를 요구하는 환경에 대응 가능
+
+
+기능 21. Vertex AI 연결
+
+원작자 1.5.2:
+- 지원
+
+사용자 1.5.4:
+- 서비스 계정 JSON
+- 브라우저 RS256 서명
+- OAuth access token
+- token memory cache / expiry refresh / invalidate-retry
+- global/regional endpoint
+- provider UI
+를 그대로 유지
+
+남은 과제:
+- 서비스 계정 JSON의 private_key도 GM storage에 저장되는 upstream 구조는 그대로다.
+- 보안 저장정책 변경은 별도 독립 패치와 회귀가 필요하다.
+
+
+기능 22. 설정창·오류창·결과 비교창 UI
+
+원작자 1.5.2의 1.5.1 UI 개선:
+- quiet/danger 버튼
+- footer 정리
+- 여러 dialog/card 개선
+- 접힌 내용 lazy rendering
+
+사용자 1.5.4:
+- 이 UI 개선 유지
+- JSON repair / STORE ZIP / hold-resume / backdrop 보호 등 사용자 기능도 유지
+
+사용자가 체감하는 변화:
+- 최신 UI를 유지하면서 사용자판 편의 기능을 잃지 않는다.
+
+
+기능 23. Memory Diff 가독성과 대형 입력 안전장치
+
+원작자 1.5.2:
+- 문장 변경을 지나치게 잘게 쪼개지 않도록 가독성 개선
+
+사용자 1.5.4:
+- 원작자 가독성 개선 유지
+- 사용자판의 추가 안전조건도 유지
+
+안전조건:
+- n+m > 10,000
+또는
+- n*m > 250,000
+이면 무리한 세밀 비교 대신 안전 fallback
+
+사용자가 체감하는 변화:
+- 수정 전/후가 읽기 쉬우면서
+  한쪽만 비정상적으로 긴 입력에서도 diff 계산 폭증을 피한다.
+
+
+기능 24. 재구축 TXT 여러 개를 외부 AI에 줄 때 “각 파일이 하나의 세트”라는 정보
+
+1.5.3:
+- 분할 TXT 자체는 존재하지만,
+  통합 과정에서 이전 버전의 1/N 패키지 안내 일부가 약해진 상태가 있었음
+
+1.5.4:
+- 01/N 파일에 전체 공통 지침과 기준 정보
+- 02/N~N/N에는 continuation header
+- 모든 파일에 동일 package_id
+- 마지막 파일에는 END marker
+- “1/N부터 전부 읽기 전에는 최종 JSON을 만들지 말 것”을 명시
+- 전체 재구축 01/N의 기존 인물 목록 참고 블록도 보존
+
+사용자가 체감하는 변화:
+- 외부 AI가 2번·3번 파일을 각각 독립 작업처럼 착각할 가능성을 줄인다.
+- 여러 TXT가 하나의 연속 패키지라는 사실이 파일 자체에 남는다.
+
+
+기능 25. 재구축 TXT가 많을 때 파일 내용을 한꺼번에 미리 Blob으로 만드는 문제
+
+1.5.3:
+- 대량 TXT를 다루는 기능은 있었지만
+  재구축 화면을 열자마자 모든 파일 내용을 Blob/Object URL 형태로 오래 잡을 수 있는 비용이 남을 수 있었음
+
+1.5.4:
+- `makeText` 기반 lazy materialization
+- 개별 파일을 실제로 받을 때 text → Blob 생성
+- ZIP에 넣을 때 필요한 파일만 그 시점에 materialize
+- 생성한 개별 Object URL은 60초 뒤 revoke
+- lazy row는 Blob 참조도 해제
+
+사용자가 체감하는 변화:
+- 수백 개의 대형 재구축 TXT가 있어도
+  “다운로드 목록을 열었다”는 이유만으로 모든 파일 Blob을 계속 메모리에 잡아두는 부담을 줄인다.
+
+
+기능 26. STORE ZIP이 너무 클 때 사전 경고
+
+1.5.4:
+- 예상 합계가 256 MiB 이상이면
+  “STORE 방식이라 생성 중 메모리를 더 사용할 수 있다”는 확인창 표시
+- 사용자가 취소하면 ZIP 생성 자체를 시작하지 않음
+
+사용자가 체감하는 변화:
+- 큰 방에서 수백 MB ZIP을 잘못 눌러 브라우저 메모리를 크게 쓰기 전에 멈출 수 있다.
+
+
+기능 27. 단순 턴 수 표시 때문에 전체 RP를 읽는 문제
+
+1.5.4:
+- memory cursor와 observe cursor가 최근 50개 stable 메시지 안에 모두 있으면
+  최근 frame만으로 정확한 pending count 계산
+- 이 경우 whole-history 경로 생략
+- cursor가 더 오래된 위치에 있으면 기존 WishHistory cache/merge → 필요 시 physical Full Read
+
+사용자가 체감하는 변화:
+- 최근 구간만 보면 정확히 계산 가능한 단순 UI 수치 때문에
+  수백만~수천만 자 방 전체를 읽는 상황을 줄인다.
+
+
+기능 28. 기준점 설정 때문에 항상 전체 대화를 읽는 문제
+
+1.5.3의 강한 원칙:
+- baseline-setting은 physical Full Read 중심
+
+1.5.4:
+- 통합 기억·인지 기준점
+- 진행형 자료 기준점
+- 기억 자동 baseline
+에서 먼저 최근 50개 stable frame으로 정확한 기준점을 잡을 수 있는지 확인
+- recent frame만으로 충분하지 않은 특이 케이스에서만 physical Full Read fallback
+
+중요:
+- “최종 외부 결과 적용 검증”이나 SOURCE SHA 최종 검증을 recent-only로 약화한 것이 아니다.
+- 기준점 설정이라는 특정 경로만 recent-first로 바뀐 것이다.
+
+사용자가 체감하는 변화:
+- 바로 최근 확정 대화가 기준점인 정상적인 경우,
+  기준점 하나 잡기 위해 전체 RP를 매번 읽는 비용을 줄인다.
+
+
+기능 29. NativeBundles 작업이 대형 RP rows를 runtime DB에 계속 저장하는 문제
+
+1.5.4:
+- 실행 중 메모리에서는 rows를 사용 가능
+- runtime DB 저장본에는 rows:[] 저장
+- 대신 각 row의 길이/가중치 정보인 rowWeights 보존
+- 구버전 job에 rows가 저장돼 있으면 rowWeights를 한 번 만들어 저장하고 rows 제거
+- 작업 재개 시 현재 검증된 SOURCE에서 rows를 다시 준비
+- source hash / 구조 검증 뒤 재수화
+- 완료/재로드 UI는 rows가 비어 있어도 rowWeights/segments로 대화 수·원문 분량·재분할 정보를 표시
+
+사용자가 체감하는 변화:
+- 수백만~수천만 자 RP 원문 조각을 작업 상태 DB에 중복으로 오래 저장하는 비용을 줄인다.
+- 브라우저 저장공간과 대형 structured clone 부담을 낮추는 방향이다.
+
+
+기능 30. 방 revision이 어긋났을 때 무조건 오류 또는 무조건 덮어쓰기 하는 문제
+
+1.5.4 진단 hardening:
+- persisted room과 현재 화면 room의 _rev/_epoch가 다르면 실제 내용도 비교
+- _rev/_epoch/updatedAt/_diagWriter 같은 bookkeeping 메타데이터만 다른 경우:
+  저장소 revision 메타데이터로 안전 재동기화 후 계속
+- 실제 slot/relationship/pending 등 내용이 하나라도 다르면:
+  WISH_ROOM_REVISION_STALE로 중단
+  자동 덮어쓰기 금지
+
+saveRoom 자체가 더 오래된 revision을 저장하려는 경우:
+- WISH_ROOM_SAVE_STALE로 중단
+- 자동 재동기화로 사용자의 아직 저장되지 않은 편집을 덮어쓰지 않음
+
+사용자가 체감하는 변화:
+- “내용은 같은데 revision 번호만 어긋난” 경우의 불필요한 중단은 줄이고,
+- 실제 내용 충돌은 강제로 덮어쓰지 않는다.
+
+
+기능 31. 어떤 작업 때문에 “진행 중인 작업이 끝난 뒤”라는 오류가 났는지 모르는 문제
+
+1.5.4:
+ExternalBundles가 단순 busy=true뿐 아니라 실제 blocker를 기록할 수 있음.
+
+예:
+- external-bundle
+- ai-update
+- automatic-memory
+- automatic-lore
+- memory-import
+- local-restore
+- rebuild
+- native-bundle
+
+오류:
+WISH_BUSY_BLOCKED
+
+사용자가 체감하는 변화:
+- “무언가 진행 중입니다”가 아니라
+  무엇이 현재 동작을 막았는지 진단 파일에서 구분하기 쉬워진다.
+
+
+기능 32. 같은 오류가 수십 번 쌓이고, 과거 버전 오류가 현재 오류처럼 보이는 문제
+
+1.5.4:
+- 동일 세션에서 operation/code/message + 핵심 상태가 같은 오류는 새 행을 무한 추가하지 않고 count/lastAt 갱신
+- revision pair나 blocker가 다르면 별도 오류로 보존
+- 현재 세션 / 같은 빌드의 이전 세션 / 과거 빌드를 구분
+- patch / status / session / signature 기록
+- 1.5.3 과거 기록이 1.5.4 현재 문제처럼 보이지 않도록 scope 표시
+
+사용자가 체감하는 변화:
+- 오류 로그가 반복 복제되어 핵심 원인이 묻히는 일을 줄인다.
+- 지금 발생한 문제와 어제/구버전에서 난 문제를 분리하기 쉬워진다.
+
+
+기능 33. 원인을 확정할 수 없는 오류의 증거 보존
+
+1.5.4:
+WLOG.fail 시 새 네트워크 요청이나 Full Read를 하지 않고,
+현재 메모리에 이미 있는 bounded evidence만 수집한다.
+
+예:
+- route/path
+- room 식별값의 hash
+- live room revision/epoch
+- routeEpoch / localRestoreEpoch
+- generation / pending
+- aiUpdate / automaticMemory / automaticLore / memoryImport / localRestore / R31 / NativeBundles / carrier-storage write 상태
+- operation/stage
+- error.diagnostic
+- 제한된 stack
+
+넣지 않는 것:
+- RP 본문
+- 기억 본문
+- 토큰
+- API key
+- 이메일
+- 전체 URL
+
+사용자가 체감하는 변화:
+- 미등록 오류라도 “원인은 모르지만 당시 상태가 어땠는지”가 남아
+  다음 패치에서 재현·원인 분석하기 쉬워진다.
+
+======================================================================
+2. “전문용어 표” 대신 보는 실제 의미 요약
+======================================================================
+
+“300/page fast path”
+= 전체 RP를 읽을 때 50개가 아니라 300개씩 먼저 요청해 긴 방의 서버 왕복 횟수를 줄이는 기능
+
+“physical single-flight”
+= 여러 기능이 같은 방 전체 로그를 요구해도 실제 서버 전체조회 하나를 공유하는 기능
+
+“12~36M shallow cache”
+= 1,200만자를 넘은 로그를 통째로 깊게 복사하지 않고 3,600만자까지 더 가벼운 방식으로 보관하는 기능
+
+“>36M uncached”
+= 3,600만자를 넘는 방을 금지하는 것이 아니라 너무 큰 로그를 장기 캐시하지 않는 방식
+
+“ABA 방어”
+= 예전에 시작한 느린 작업 결과가 최신 방 상태를 과거 상태로 되돌리지 못하게 하는 장치
+
+“externalStageOnly”
+= 외부 AI가 이미 분석한 JSON을 적용할 때 전체 RP를 다시 AI prompt로 만들지 않는 방식
+
+“SOURCE SHA strict”
+= 외부 결과가 현재 RP와 정확히 같은 원문에서 만들어졌는지 SHA-256으로 확인하는 방식
+
+“45초 source session”
+= 방금 확인한 동일 원문을 사람이 같은 작업을 바로 이어서 하는 짧은 시간 동안만 재사용하는 기능
+
+“JSON repair / hold-resume”
+= 고칠 수 있는 JSON은 내부 편집기로 수정하고, 다른 작업 때문에 막혔다면 같은 입력을 다시 선택하지 않고 이어가는 기능
+
+“STORE ZIP”
+= 재구축 TXT 수백 개를 무압축 ZIP 컨테이너 하나로 묶는 기능
+
+“1/N package”
+= 여러 재구축 TXT가 하나의 연속 패키지이며 전부 읽어야 최종 결과를 만들 수 있다는 정보를 파일 자체에 넣는 방식
+
+“lazy TXT”
+= 다운로드 목록을 만들 때 파일 본문 Blob을 전부 미리 만들지 않고 실제로 필요할 때만 생성하는 방식
+
+“recent fast-path”
+= 최근 50개 안에서 정확한 답을 낼 수 있으면 전체 RP 조회를 하지 않는 방식
+
+“rowWeights”
+= 대형 RP 원문 rows를 DB에 그대로 중복 저장하지 않고, 재분할·표시 계산에 필요한 작은 길이 정보만 보존하는 방식
+
+“code/evidence-first diagnostics”
+= 오류 문구의 단어를 보고 원인을 추측하기보다 error code와 실제 당시 상태를 먼저 보고 판단하는 방식
+
+“revision resync”
+= 방 내용이 완전히 같은데 revision 메타데이터만 어긋난 경우에만 번호를 안전하게 맞추는 방식
+
+“state-aware dedup”
+= 오류 문구만 같은 것이 아니라 revision pair/blocker 등 핵심 상태까지 같을 때만 반복 오류를 한 행으로 합치는 방식
+
+======================================================================
+3. 버전별로 가장 쉽게 요약하면
+======================================================================
+
+[사용자 1.4.1]
+
+좋은 점:
+- 초장기 RP 방 처리에 강함
+- 전체 로그 중복 조회와 거대한 메모리 복사를 많이 줄임
+- 외부 재구축 결과를 엄격하게 검증
+- 오류·취소·재시도 처리가 세밀함
+- 대량 TXT ZIP 다운로드 가능
+
+아쉬운 점:
+- Vertex AI 없음
+- Firebase App Check 없음
+- 원작자 1.5.1 UI 개선 없음
+- 원작자 1.5.2 Memory Diff 개선 없음
+
+
+[원작자 1.5.2]
+
+좋은 점:
+- Vertex AI
+- Firebase App Check
+- UI 정리
+- Memory Diff 가독성 개선
+- upstream 구조를 그대로 따르기 쉬움
+
+아쉬운 점:
+- 사용자 1.4.1의 초장기방 최적화가 모두 들어가 있지는 않음
+- 50개 단위 전체 읽기 중심
+- 12M~36M 사용자판 캐시 전략 없음
+- 사용자판의 strict SOURCE 적용 검증, JSON repair/hold-resume, STORE ZIP, 세부 Full Read 진단 등이 없음
+
+
+[사용자 1.5.3]
+
+좋은 점:
+- 1.4.1 장기방/무결성 계약 유지
+- 원작자 1.5.2 App Check / Vertex / UI / Memory Diff 이식
+- 안정성과 최신 기능을 합침
+
+아쉬운 점:
+- 코드 복잡도 증가
+- 일부 이전 사용자판의 대량 재구축 출력 최적화/패키지 구조가 통합 과정에서 약해짐
+- 오류 진단 일부가 message pattern 추측에 의존
+- 이후 upstream을 통째로 덮어쓸 수 없음
+
+
+[사용자 1.5.4 현재 patching]
+
+좋은 점:
+- 1.5.3 기능을 유지
+- 1/N 재구축 패키지 복구
+- lazy TXT + 60초 URL/Blob 해제
+- 256 MiB ZIP 사전 경고
+- 최근 50개로 해결 가능한 턴 수/일부 baseline 전체조회 절감
+- NativeBundles 대형 rows DB 비영속화
+- 진단을 error code + 실제 evidence 중심으로 강화
+- revision 충돌/오래된 저장/busy blocker를 구조화
+- 오류 반복과 과거 빌드 기록을 더 잘 구분
+
+아쉬운 점:
+- 1.5.3보다 코드 상태와 진단 메타데이터가 더 복잡함
+- current source status가 patching임
+- 실제 Crack/Tampermonkey 장기방 live soak 완료 전 FULL이라고 부를 수 없음
+- >36M uncached의 반복 physical read 비용은 그대로 존재
+- STORE ZIP은 무압축이라 대형 ZIP 생성 시 메모리 비용이 있음
+- Vertex service-account private_key 저장정책은 그대로 남음
+
+======================================================================
+4. 1.5.2 대비 1.5.4에서 기대할 수 있는 실제 변화
+======================================================================
+
+1) 초장기 RP 전체조회 비용 감소
+- 50/page 중심 → 300/page 우선
+- single-flight로 중복 physical read 감소
+- transient retry/fallback
+- runaway guard
+
+2) 장기방 메모리 급증 방어
+- <=12M deep
+- 12M~36M shallow-large
+- >36M uncached
+- giant full-history join/re-stringify 경로 억제
+
+3) 외부 AI 결과 적용 무결성 강화
+- cheap-first JSON 검사
+- SOURCE anchor + SHA
+- 45초 validated session
+- final fresh verification
+- 실제 source mismatch 편집 우회 금지
+
+4) 작업 복구성 향상
+- JSON repair
+- busy hold/resume
+- injection prep cancel
+- Delta one-shot fallback
+
+5) 대량 재구축 다운로드 편의 + 메모리 개선
+- STORE ZIP
+- zero-padding
+- batch 10
+- 1/N package
+- lazy TXT
+- 60초 Blob/Object URL 해제
+- 256 MiB 경고
+
+6) 불필요한 전체조회 감소
+- 최근 50개에서 cursor가 모두 보이는 턴 수 계산은 recent-only
+- 일부 baseline은 recent-first
+- 정확히 확정할 수 없을 때만 physical fallback
+
+7) NativeBundles 저장비용 감소
+- 대형 RP rows를 runtime DB에 계속 저장하지 않음
+- rowWeights/segments로 필요한 구조정보 유지
+- 재개 시 검증된 SOURCE에서 rows 재수화
+
+8) 진단 정확성 향상
+- error message 추측보다 code/diagnostic 우선
+- 미등록 오류는 임의 원인 확정 금지
+- bounded evidence/stack 보존
+- room revision/save conflict 구분
+- 실제 busy blocker 보존
+- current session / same build / old build 구분
+- 동일 상태 반복 오류 count 처리
+
+9) 원작자 1.5.2의 최신 기능 유지
+- Firebase App Check
+- Vertex AI
+- 1.5.1 UI polish/lazy rendering
+- readable Memory Diff
+
+======================================================================
+5. 1.5.4에서 생기는 비용·trade-off
+======================================================================
+
+1) 코드 복잡도 증가
+1.4.1 안정성 계약, 원작자 1.5.x 기능,
+1.5.4 regression-recovery, 진단 hardening이 함께 존재한다.
+
+2) upstream 전체 덮어쓰기 불가
+향후 원작자 새 버전은 upstream 1.5.2 이후 delta를 기능 단위로 분류해
+현재 1.5.4에 forward-port해야 한다.
+
+3) 3,600만자 초과 방의 반복작업 비용
+메모리 안전을 위해 장기 캐시하지 않으므로 physical Full Read가 반복될 수 있다.
+
+4) strict source 적용의 불편
+RP 원문이 조금이라도 바뀌면 과거 외부 JSON을 그대로 적용하지 못할 수 있다.
+이는 편의성보다 correctness를 우선한 의도적 선택이다.
+
+5) STORE ZIP은 무압축
+파일 크기가 크게 줄어드는 ZIP이 아니며,
+특히 수백 MiB급은 생성 중 브라우저 메모리 부담이 있다.
+1.5.4는 256 MiB 이상 사전 확인을 추가했다.
+
+6) lazy TXT의 비용은 “삭제”가 아니라 “필요 시점으로 이동”
+실제로 파일을 받거나 ZIP에 넣을 때는 결국 해당 TXT 문자열/Blob을 만들어야 한다.
+대신 전 파일을 처음부터 동시에 오래 보관하는 비용을 줄인다.
+
+7) 진단 메타데이터 증가
+오류 한 건당 patch/status/session/stack/evidence/signature 등 필드가 늘었다.
+다만 bounded 정보이며 RP 본문·API key 등을 수집하지 않는다.
+
+8) revision resync는 제한적
+내용이 완전히 같은 경우에만 metadata resync한다.
+실제 내용 차이가 있으면 자동복구하지 않고 중단하기 때문에
+사용자에게 “다시 열고 재시도”가 필요할 수 있다.
+
+9) Vertex service-account 저장
+private_key 포함 JSON이 GM storage에 저장되는 upstream 방식은 그대로다.
+별도 보안 hardening 후보지만 이번 1.5.4 범위에서 즉흥적으로 바꾸지 않았다.
+
+10) 현재 상태는 patching
+기능이 구현돼 있다고 해서 곧바로 FULL 완료판으로 승격하지 않는다.
+
+======================================================================
+6. 지금까지 확인된 테스트
+======================================================================
+
+[A. 1.5.3에서 이미 검증된 기반 계약]
+
+- JavaScript 문법 검사 PASS
+- 정적 회귀검사 66/66 PASS
+- 300/page Full Read PASS
+- transient 500 retry PASS
+- Crack300 → Contents50 PASS
+- Crack300 → Contents50 → Crack50 PASS
+- repeated cursor PASS
+- 1,000 page guard PASS
+- 100,000 message guard PASS
+- 50 logical Full Read → physical 1 PASS
+- cancel 후 immediate retry race PASS
+- 약 25MiB shallow cache PASS
+- >36MiB uncached PASS
+- SOURCE SHA mismatch 차단 PASS
+- WebSocket send ordering synthetic 1,000회 PASS
+- Memory Diff asymmetric guard PASS
+- STORE ZIP 125개 약 75MB PASS
+- STORE ZIP 300개 약 180MB PASS
+- ZIP cancel PASS
+
+
+[B. 1.5.4 regression-recovery에서 다시 확인된 항목]
+
+- JavaScript 문법 검사 PASS
+- 정적 회귀검사 54/54 PASS
+- 1/N header / continuation / END marker 검사 PASS
+- 기존 인물 목록 보존 검사 PASS
+- 기억/인물 전용 header 보존 PASS
+- lazy TXT 검사 PASS
+- ZIP warning 검사 PASS
+- 개별/10개/ZIP 다운로드 경로 보존 PASS
+- recent turn-count fast-path 검사 PASS
+- 3개 baseline helper 검사 PASS
+- NativeBundles rows 비영속화 / migration / rehydration / UI fallback 검사 PASS
+- 핵심 1.5.3 계약 보존 검사 PASS
+- 구형 모듈 wholesale 미이식 검사 PASS
+- 변경범위가 계획 대상에 국한되는지 diff 검사 PASS
+
+동적 단위검사:
+- lazy 개별 materialize: makeText 1회 호출 PASS
+- 60초 release callback: URL revoke + lazy Blob 해제 PASS
+- lazy ZIP materialize + 유효 local header PASS
+- never-clicked lazy row 추가 Blob 참조 해제 PASS
+- eager row ZIP 호환 PASS
+- ZIP cancel WISH_USER_ABORT PASS
+
+해당 regression-recovery 산출물:
+- SHA-256: f2becd573d02a4efa9eaaec82f206bada3477e97318c8886094fa4e187fd9a41
+- 크기: 1,893,495 bytes
+
+
+[C. 1.5.4 진단 hardening 계획 사전 회귀]
+
+- 계획 회귀 20/20 PASS
+- patching 상태 명시 PASS
+- live soak 전 FULL 금지 PASS
+- message 추측 진단 개편 계획 PASS
+- 미등록 오류 evidence 보존 계획 PASS
+- 민감정보/RP 본문 비수집 계획 PASS
+- revision stale/save stale/busy blocker 구조화 계획 PASS
+- actual content 차이 자동 덮어쓰기 금지 PASS
+- saveRoom stale 자동동기화 금지 PASS
+- writer 추적 계획 PASS
+- state-aware dedup 계획 PASS
+- 세션/빌드 범위 분리 계획 PASS
+- 새 network/Full Read/polling 금지 PASS
+- 기존 1.5.4 기능 보존 계획 PASS
+
+현재 1947 patching 소스에는 위 진단 hardening 구현이 반영되어 있다.
+다만 이 보고서는 현재 소스를 FULL 완료판으로 승격하거나,
+실제 Crack/Tampermonkey live soak를 완료했다고 선언하지 않는다.
+
+======================================================================
+7. 아직 실제 브라우저에서 확인해야 하는 부분
+======================================================================
+
+아래 항목은 코드/정적/합성/단위검사와 실제 장시간 실사용을 구분해야 한다.
+
+- 실제 Crack 서버에서 300/page 장기 반복 안정성
+- 방/분기 이동 + restore + Full Read race
+- 실제 WebSocket 전송 실패 후 retry/reroll
+- 수시간 브라우저 메모리 누적
+- 12M~36M shallow cache 실제 UI/GC 체감
+- >36M uncached 반복 Full Read 체감
+- 180MB 이상, 특히 256 MiB 부근/초과 STORE ZIP 실제 반응성
+- 수백 개 lazy TXT 목록에서 개별/10개/ZIP 반복 다운로드
+- NativeBundles 장시간 작업 재개/새로고침 후 rows 재수화 실사용
+- recent baseline fast-path와 physical fallback 전환 실사용
+- 동일내용 revision metadata mismatch의 resync 실사용
+- 실제내용 revision conflict가 정확히 WISH_ROOM_REVISION_STALE로 차단되는지
+- 오래된 saveRoom이 WISH_ROOM_SAVE_STALE로 차단되는지
+- external-export 등 busy blocker가 실제 원인명으로 남는지
+- current session / same build previous / old build 표시가 실제 오류 UI에서 혼동 없이 보이는지
+- 미등록 오류 evidence가 실제 최초 실패 지점을 찾는 데 충분한지
+
+이 항목들이 확인되기 전에는 현재 1.5.4를 FULL이라고 선언하지 않는다.
+
+======================================================================
+8. 원작자에게 가장 짧게 설명한다면
+======================================================================
+
+1.5.4는 원작자 1.5.2를 다시 만든 버전이 아니다.
+
+사용자 1.4.1에서 이미 고친:
+- 초장기 RP 전체조회
+- 12M/36M 메모리 정책
+- physical single-flight
+- 취소/retry race
+- SOURCE SHA strict verification
+- JSON repair/hold-resume
+- STORE ZIP
+- 상세 diagnostics
+
+를 유지하고,
+
+원작자 1.5.2의:
+- Firebase App Check
+- Vertex AI
+- UI 개선
+- Memory Diff 가독성 개선
+
+을 1.5.3에서 선별 이식한 뒤,
+
+1.5.4에서 다시:
+- 1/N 재구축 package
+- lazy TXT
+- 256 MiB ZIP 경고
+- recent turn-count/baseline fast-path
+- NativeBundles rows 비영속화
+- code/evidence-first 진단
+- revision/save conflict 구조화
+- busy blocker
+- session/build scope + state-aware dedup
+
+을 추가한 계통이다.
+
+쉽게 말하면:
+
+“원작자 1.5.2의 최신 기능을 유지하면서,
+긴 RP 방과 대량 재구축에서 불필요한 메모리·전체조회 비용을 더 줄이고,
+오류가 났을 때 추측보다 실제 증거를 남기도록 강화한 사용자판”
+
+이라고 보면 된다.
+
+단, 현재 1.5.4 소스는 patching 상태다.
+
+======================================================================
+9. 결론
+======================================================================
+
+사용자 1.4.1은
+“장기방 안정성과 무결성을 먼저 강화한 버전”이다.
+
+원작자 1.5.2는
+“App Check, Vertex, 최신 UI, Memory Diff 개선을 제공한 upstream 버전”이다.
+
+사용자 1.5.3은
+“1.4.1의 장기방 안정성을 유지하면서 원작자 1.5.2의 장점을 선별 통합한 버전”이다.
+
+사용자 1.5.4는
+“1.5.3을 BASE로 유지하면서,
+재구축 파일 패키지 구조·lazy TXT·recent fast-path·NativeBundles 저장비용을 보강하고,
+오류 진단을 code/evidence 중심으로 다시 강화한 후속 버전”이다.
+
+원작자 1.5.2 대비 핵심 차이는 단순히 기능 수가 많다는 것이 아니다.
+
+- 대용량 RP를 읽는 횟수
+- 대용량 원문을 복사·직렬화·DB 저장하는 방식
+- 외부 결과를 현재 RP에 적용하기 전 무결성 확인
+- 대량 TXT/ZIP을 언제 메모리에 만드는지
+- 방 상태 충돌 시 무엇을 자동으로 맞추고 무엇을 절대 덮어쓰지 않는지
+- 오류 원인을 문구로 추측하는지 실제 code/evidence로 판단하는지
+
+에서 사용자판의 별도 안정성 계약을 유지한다는 점이 핵심이다.
+
+현재 1.5.4는 @version 1.5.4이지만 SCRIPT_STATUS=patching이다.
+따라서 다음 단계는 새 기능을 더 얹기보다
+실제 Crack/Tampermonkey 장기방에서 1.5.4의 새 경로를 검증하고,
+재현된 문제만 증거 기반으로 최소 수정하는 것이다.
+
+======================================================================
+검토내용
+======================================================================
+
+- 작업지시내용 = 기존 1.5.3 인간용 비교보고서의 양식과 설명 방식을 기준으로, 원작자 1.5.2 대비 사용자 1.5.4의 실제 변경내용을 반영한 인간용 보고서를 작성. 1.5.4 본체 파일은 이번 작업에서 수정·생성하지 않음.
+- 작업수행결과 = 기존 1.4.1/원작자 1.5.2/사용자판 계통 설명과 장기방·SOURCE·JSON·ZIP·provider/UI/Memory Diff 항목을 유지하고, 1.5.4의 1/N package, lazy TXT, 256 MiB ZIP 경고, recent turn-count/baseline fast-path, NativeBundles rows 비영속화, code/evidence-first diagnostics, revision/save conflict, busy blocker, 세션/빌드 구분과 state-aware dedup을 추가 반영함.
+- 지침대조결과 = 기존 보고서 형식을 참조하되 단순히 1.5.3 문자열만 1.5.4로 바꾸지 않고 1.5.4에서 실제로 추가·변경된 계약을 반영함. 현재 1.5.4가 patching 상태임을 명시하여 FULL 완료판으로 오인하지 않게 했으며, 기존 1.5.3의 검증 이력과 1.5.4 regression-recovery/진단계획 검증을 구분함.
+- 임의수행 여부 = 1.5.4 소스 수정·생성·버전 승격 없음. 보고서 작성 외 임의 작업 없음.
+- 누락 여부 = 기존 보고서의 주요 비교 항목과 1.5.4 추가 변경점, 테스트 이력, 남은 live 검증 항목을 포함함.
+- 최종판정 = 이상 없음
+- 불일치 상세 = 없음

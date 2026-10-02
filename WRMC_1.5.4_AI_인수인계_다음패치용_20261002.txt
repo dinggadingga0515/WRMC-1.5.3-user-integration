@@ -1,0 +1,1383 @@
+﻿WRMC 사용자 1.5.4 — 다음 패치용 AI 인수인계서
+현재 상태: 1.5.4 임시 · patching
+작성일: 2026-10-02
+목적: 기존 「WRMC 사용자 통합 1.5.3 — 다음 패치용 AI 인수인계서」의 구조와 회귀계약을 1.5.4 기준으로 갱신하여,
+다음 작업자가 이 문서를 AI에 그대로 제공하고 후속 패치·회귀검사·FULL 승격 판단을 이어갈 수 있게 한다.
+
+중요:
+이번 문서 작성 작업에서는 1.5.4 userscript 본체를 수정하거나 새로 생성하지 않는다.
+현재 기준 소스는 이미 존재하는 1.5.4 patching 파일이며,
+본 문서는 그 상태를 기술적으로 인수인계하는 보고서다.
+
+======================================================================
+0. 최우선 버전/소유권/상태 규칙
+======================================================================
+
+절대 혼동하지 말 것.
+
+A. 사용자 1.4.1
+- USER-PATCHED VERSION.
+- 원작자 1.4.0 구조 위에 장기방 안정성/성능/무결성 패치를 올린 버전.
+- 원작자 릴리스가 아님.
+
+B. 원작자 1.5.2
+- ORIGINAL AUTHOR RELEASE / UPSTREAM REFERENCE.
+- upstream 1.5.0 provider/auth
+- upstream 1.5.1 UI polish/lazy rendering
+- upstream 1.5.2 readable Memory Diff
+를 포함.
+
+C. 사용자 통합 1.5.3
+- USER-INTEGRATED VERSION.
+- 사용자 1.4.1을 BASE로 원작자 1.5.x 장점을 기능 단위로 forward-port한 결과.
+- Full Read/WishHistory/SOURCE/JSON repair/STORE ZIP 등 사용자 1.4.1 계약을 유지하면서 App Check/Vertex/UI/Memory Diff를 합친 중간 기준판.
+
+D. 사용자 1.5.4
+- USER-PATCHED SUCCESSOR OF 1.5.3.
+- 1.5.3을 폐기하거나 원작자 1.5.2에서 다시 시작한 버전이 아님.
+- 1.5.3 위에 regression-recovery + diagnostic hardening을 추가한 계통.
+- 현재 파일은 FULL 완료판이 아니라 PATCHING build.
+
+현재 메타데이터:
+- @version = 1.5.4
+- SCRIPT_VERSION = 1.5.4
+- SCRIPT_PATCH = 20261002 1947 KST 1.5.4 temporary-diagnostic-hardening
+- SCRIPT_STATUS = patching
+- @name에도 1.5.4 임시·patching이 명시됨
+
+절대 규칙:
+- 숫자 버전이 1.5.4라고 해서 FULL로 판정하지 말 것.
+- 실제 Crack/Tampermonkey 장기방 live soak 및 사용자 검증 전에는 FULL 승격 금지.
+- 다음 패치의 직접 BASE는 현재 1.5.4 patching 파일이다.
+- 원작자 1.5.2 또는 사용자 1.4.1로 BASE를 되돌리지 말 것.
+- 사용자 1.5.3은 직전 안정성/기능 계약 비교용 참조본이지 다음 패치의 직접 BASE가 아니다.
+
+======================================================================
+1. 정확한 소스 식별
+======================================================================
+
+[REF-141]
+파일:
+WRMC_1.4.1_FULL_userpatch_regressionfix_20261001_1122.txt
+bytes: 1,859,095
+lines: 18,027
+SHA-256:
+a58e1e3efb10991af1b31b5be790486b770065233aeb5049260ed55914fe4658
+
+역할:
+- 장기방/무결성 계약의 원형 참조
+- 새 패치의 직접 BASE 아님
+
+
+[REF-UPSTREAM-152]
+파일:
+붙여넣은 텍스트(1).txt
+bytes: 1,835,063
+lines: 17,862
+SHA-256:
+359104532e8a17909b936f1f9f0961b93d40d409cdb8743ff7937e028e87fde3
+
+역할:
+- 원작자 1.5.2 upstream reference
+- 새 upstream diff를 계산할 때의 기준
+- 직접 BASE로 되돌리면 안 됨
+
+
+[REF-153]
+파일:
+WRMC_1.5.3_FULL_userpatch_integrated_20261001_2145(1).txt
+bytes: 1,886,256
+lines: 18,318
+@version: 1.5.3
+
+역할:
+- 1.5.4 직전 통합판
+- 1.4.1 계약 + upstream 1.5.0~1.5.2 기능이 결합된 기준
+- 1.5.4 regression-recovery가 무엇을 추가로 복구했는지 비교할 때 사용
+
+주의:
+- 과거 2115 통합본의 SHA를 2145 파일에 그대로 적용하지 말 것.
+- 다음 패치에서 REF-153의 exact SHA가 필요하면 해당 2145 파일에서 새로 계산할 것.
+
+
+[REF-154-RECOVERY]
+파일:
+WRMC_1.5.4_FULL_regression_recovery_20261002.txt
+bytes: 1,893,495
+SHA-256:
+f2becd573d02a4efa9eaaec82f206bada3477e97318c8886094fa4e187fd9a41
+
+역할:
+- 1.5.4 regression-recovery 적용 직후 검증본
+- 1/N package / lazy TXT / recent fast-path / NativeBundles rows 비영속화 / 256 MiB ZIP warning의 검증 근거
+
+주의:
+- 파일명에 FULL이 있으나 이후 diagnostic hardening이 추가되었고,
+  현재 기준 파일은 아래 BASE-154-PATCHING이다.
+- 따라서 REF-154-RECOVERY를 현재 최종 BASE로 사용하지 말 것.
+
+
+[BASE-154-PATCHING]
+현재 파일:
+WRMC_1.5.4_임시_patching_diagnostic_hardening_20261002_1947.txt
+bytes: 1,908,610
+lines: 18,478
+@version: 1.5.4
+SCRIPT_VERSION: 1.5.4
+SCRIPT_STATUS: patching
+기존 작업기록 기준 SHA-256:
+885f606de870003c42146da0a334f56bd11456fed75614efc8b68037df9b98a4
+
+다음 패치의 직접 BASE:
+[BASE-154-PATCHING]
+
+다음 작업 시작 시:
+1. 실제 전달받은 BASE-154 파일의 SHA-256을 다시 계산한다.
+2. 위 기록과 같으면 동일본으로 취급한다.
+3. 다르면 바로 수정하지 말고 먼저 diff를 조사한다.
+4. 사용자가 별도 최신 파일을 지정했다면 그 파일을 새 BASE로 명시한다.
+
+======================================================================
+2. 현재 1.5.4의 계통
+======================================================================
+
+개념적으로:
+
+원작자 1.4.0
+   ├─ 사용자 1.4.1
+   │    └─ G1~G11 + H1~H7 장기방/무결성/UX 안정화
+   │         └─ 사용자 통합 1.5.3
+   │              + upstream 1.5.0 App Check / Vertex
+   │              + upstream 1.5.1 UI polish / lazy rendering
+   │              + upstream 1.5.2 readable Memory Diff
+   │                   └─ 사용자 1.5.4 regression-recovery
+   │                        + 1/N rebuild package 복구
+   │                        + lazy TXT materialization
+   │                        + 256 MiB STORE ZIP preflight warning
+   │                        + recent-frontier turn-count/baseline fast-path
+   │                        + NativeBundles rows non-persistent + rowWeights
+   │                             └─ 사용자 1.5.4 diagnostic hardening
+   │                                  + code/evidence-first diagnostics
+   │                                  + room revision/save conflict codes
+   │                                  + safe metadata-only resync
+   │                                  + writer tracking
+   │                                  + busy blocker
+   │                                  + session/build scope
+   │                                  + state-aware dedup
+   │
+   └─ 원작자 1.5.0 → 1.5.1 → 1.5.2
+
+핵심 해석:
+- 1.5.4는 원작자 1.5.2를 통째로 수정한 버전이 아니다.
+- 사용자 1.4.1 → 사용자 1.5.3 계통의 연장선이다.
+- 1.5.4에서 1.3.40 장점을 일부 복구했지만 old 1.3.40 전체를 이식하지 않았다.
+- old RoomJobFSM/RoomJobGuard/WishSourceIdentity/Quick Injection/prompts/UI/NativeBundles-Lore API/MemoryDiff/old ZIP engine은 wholesale port 대상이 아니다.
+
+미래 upstream이 1.5.3/1.6.x 등으로 올라가면:
+- upstream 1.5.2 -> 새 upstream diff를 먼저 구한다.
+- 각 변경 hunk를 기능 단위로 분류한다.
+- BASE-154 위에 필요한 delta만 forward-port한다.
+- 새 upstream 전체 파일로 BASE-154를 교체하지 않는다.
+
+======================================================================
+3. 반드시 보존할 1.5.4 핵심 regression contracts
+======================================================================
+
+다음은 구현 세부가 아니라 회귀 계약이다.
+후속 패치는 동일 목적을 유지해야 하며, 편의나 최신 upstream이라는 이유로 약화하면 안 된다.
+
+----------------------------------------------------------------------
+K01. Full Read 300/page + compatibility fallback
+----------------------------------------------------------------------
+
+- FULL_READ_PAGE_SIZE = 300
+- legacy size = 50
+- Crack 300 우선
+- transient retry
+- first-request incompatibility에서 Contents 50
+- 필요 시 Crack 50
+- 읽기 도중 host/cursor family를 임의 혼합하지 않음
+- bounded retry 유지
+
+금지:
+원작자 1.5.2의 50/page 전용 구조로 되돌리지 말 것.
+
+
+----------------------------------------------------------------------
+K02. Full Read safety bounds
+----------------------------------------------------------------------
+
+- FULL_READ_MAX_MESSAGES = 100000
+- FULL_READ_MAX_PAGES = 1000
+- repeated cursor 차단
+- malformed role/id 차단
+- duplicate id 차단
+- pagination metadata 검증
+
+금지:
+서버가 정상일 것이라는 가정으로 guard 삭제 금지.
+
+
+----------------------------------------------------------------------
+K03. Physical Full Read single-flight
+----------------------------------------------------------------------
+
+- same rid + WishHistory.stamp 기준 physical read 공유
+- caller는 subscriber
+- subscriber 개별 cancel
+- all subscribers cancel/stale에서만 physical abort
+- flight.aborted이면 새 caller를 old flight에 붙이지 않음
+- aborting flight map detach 후 fresh physical 시작
+
+과거 실제 regression:
+마지막 subscriber cancel 뒤 old promise cleanup 전 새 caller가 붙어 WISH_USER_ABORT를 상속하던 race가 있었음.
+현재 fix 유지.
+
+
+----------------------------------------------------------------------
+K04. Cancel / stale / error 분리
+----------------------------------------------------------------------
+
+- user cancel = WISH_USER_ABORT
+- room/route/restore/frontier/replay stale = WISH_HISTORY_STALE 계열
+- 실제 error와 cancel/stale을 진단에서 분리
+- cancelledReads / staleReads / errorReads 유지
+- failedReads는 aggregate non-complete 의미 유지
+
+
+----------------------------------------------------------------------
+K05. WishHistory 12M / 36M policy
+----------------------------------------------------------------------
+
+- NORMAL_MAX_CHARS = 12000000
+- HARD_MAX_CHARS = 36000000
+- <=12M: deep snapshot
+- 12M~36M: top-level shallow-frozen large snapshot
+- >36M: uncached
+
+금지:
+>12M cache miss 경로에 whole-history structuredClone 재도입 금지.
+
+
+----------------------------------------------------------------------
+K06. Monotonic revision / ABA defense
+----------------------------------------------------------------------
+
+- hard revision map을 page lifetime 동안 작은 integer map으로 유지
+- frontier sequence monotonic
+- eviction 뒤 old revision이 implicit 0으로 돌아가지 않음
+- Date.now 단순 timestamp만으로 ABA 방지 대체 금지
+
+
+----------------------------------------------------------------------
+K07. Append frontier vs hard invalidation
+----------------------------------------------------------------------
+
+- 정상 collection POST /messages = soft frontier change
+- edit/delete/message-specific write = hard invalidation
+- dirty frontier에서 hasMessage miss = false로 단정하지 않고 unknown/null 가능
+- recent overlap 검증 후 cache merge
+
+
+----------------------------------------------------------------------
+K08. Cache-first와 final integrity의 경계
+----------------------------------------------------------------------
+
+cache-first 가능:
+- preview
+- export preparation
+- analyze
+- non-final source preparation
+- older cursor의 UI turn-count가 full history를 필요로 할 때 WishHistory cache/merge
+
+final fresh physical 유지:
+- final external apply
+- final commit/source integrity verification
+- authoritative source verification
+- source SHA 최종 확인
+
+1.5.4에서 변경된 baseline 규칙:
+- baseline-setting을 무조건 physical Full Read로 고정하지 않는다.
+- recent 50 stable frame만으로 정확한 기준점을 확정할 수 있으면 recent-first 허용.
+- recent에서 정확한 기준점을 찾지 못하는 특이 케이스만 physical Full Read fallback.
+- 이 변경을 final SOURCE 검증까지 확대하면 안 된다.
+
+즉:
+“recent-first baseline”과 “final fresh source verification”을 서로 혼동하지 말 것.
+
+
+----------------------------------------------------------------------
+K09. Initial injection giant full join 제거
+----------------------------------------------------------------------
+
+- full history는 source/branch validation에 사용 가능
+- recall context는 bounded
+- 전체 stable RP를 다시 giant `.map(...).join()` 하지 않음
+
+
+----------------------------------------------------------------------
+K10. externalStageOnly
+----------------------------------------------------------------------
+
+- external JSON은 이미 AI 분석 결과
+- 적용 stage에서 전체 RP를 U3 prompt로 다시 직렬화하지 않음
+- rows는 evidence/stage validation에 유지 가능
+- request envelope에서 RP prompt text 생략
+
+금지:
+externalStage에서 multi-million-char RP prompt 재생성.
+
+
+----------------------------------------------------------------------
+K11. External SOURCE strict integrity
+----------------------------------------------------------------------
+
+import/pre-session:
+- source.last_message_id 비교
+- source.sha256 current source hash 비교
+
+validated session:
+- TTL 45,000 ms
+- room + WishHistory.stamp + anchor + SHA 결합
+- 검증 성공 뒤에만 session 저장
+
+final external apply:
+- fresh physical source
+- anchor mismatch block
+- strict external source SHA mismatch block
+
+주의:
+internal/general R31의 non-strict notice semantics와
+external import strict semantics를 억지로 통합하지 말 것.
+
+
+----------------------------------------------------------------------
+K12. Cheap-first external JSON
+----------------------------------------------------------------------
+
+Full Read 전:
+- parse
+- format/version/schema
+- local semantic
+- person/reference preflight
+- recent anchor cheap check
+
+그 뒤에만 expensive source read.
+
+
+----------------------------------------------------------------------
+K13. JSON repair / busy hold-resume
+----------------------------------------------------------------------
+
+- raw JSON memory 보존
+- explicit resume
+- polling 없음
+- in-app editor <= 2,000,000 chars
+- parse/schema/local semantic/source-format 등 repairable error만 editor
+- actual source mismatch를 editor로 우회 금지
+- retry 시 동일 validator 재실행
+
+
+----------------------------------------------------------------------
+K14. Injection preparation cancellation
+----------------------------------------------------------------------
+
+- reading/validating phase cancelable
+- Full Read subscriber/lock wait abort
+- room.pending/save/PATCH/apply 시작 전 cancel boundary
+- applying phase 진입 후 non-cancellable
+
+
+----------------------------------------------------------------------
+K15. WebSocket sendAttempted ordering
+----------------------------------------------------------------------
+
+정답:
+previousSend.call(socket,data);
+sendAttempted=true;
+
+금지:
+sendAttempted=true;
+previousSend.call(socket,data);
+
+native send throw 시 sendAttempted=false 유지.
+
+
+----------------------------------------------------------------------
+K16. Delta one-shot fallback
+----------------------------------------------------------------------
+
+- WISH_DELTA_REJECTED일 때만
+- 정확히 1회
+- second request forceStateSnapshot=true
+- unrelated failure에는 적용 금지
+- retry loop 금지
+
+
+----------------------------------------------------------------------
+K17. STORE ZIP
+----------------------------------------------------------------------
+
+- STORE method
+- explicit user action에서만 생성
+- progress
+- cancel
+- 개별 TXT 유지
+- batch 10 유지
+- zero-padded filename
+- giant all-text join 금지
+- Blob/reference 중심
+- 현재 WishStoreZip 엔진 유지
+
+금지:
+old buildStoreTextZip/textZipLocalHeader 계열 ZIP 엔진 wholesale 복귀.
+
+
+----------------------------------------------------------------------
+K18. Backdrop gesture protection
+----------------------------------------------------------------------
+
+보호 dialog:
+- JSON repair
+- waiting/import
+- review
+- download
+- 기타 중요 editor/sheet
+
+동작:
+- pointerdown/pointerup 동일 backdrop
+- movement threshold 초과 close 금지
+- drag/selection/scroll accidental close 금지
+
+
+----------------------------------------------------------------------
+K19. Full Read / WishHistory detailed diagnostics
+----------------------------------------------------------------------
+
+보존:
+- physicalReads
+- completedReads
+- failedReads
+- cancelledReads
+- staleReads
+- errorReads
+- pageAttempts
+- fastAttempts
+- fastFailures
+- transientRetries
+- fastToContentsFallbacks
+- contentsToCrackFallbacks
+- runawayStops
+- last mode/host/pages/messages/error
+- URL/path/token masking
+- 진단 TXT
+
+
+----------------------------------------------------------------------
+K20. No new high-frequency polling
+----------------------------------------------------------------------
+
+현재 textual baseline:
+setInterval( = 2
+
+진단/UI/provider 편의를 이유로 새 상시 polling 추가 금지.
+event-driven / explicit action / bounded timeout 우선.
+
+
+----------------------------------------------------------------------
+K21. 1/N rebuild package identity
+----------------------------------------------------------------------
+
+전체/관계 재구축 분할 TXT:
+- 01/N = 공통 지침·고정 설정·수동 보호 자료·SOURCE
+- 전체 재구축 01/N = 기존 인물 목록 참고 블록 보존
+- 02/N~N/N = continuation header
+- 모든 파일 = 동일 package_id
+- continuation에 “1/N부터 전체 파일을 읽기 전 final JSON 작성 금지” 의미 유지
+- 마지막 파일 = END OF WISH REBUILD PACKAGE marker
+- package_id 재확인
+
+목적:
+분할 파일을 독립 작업으로 오해하는 외부 AI 오류 감소.
+
+금지:
+모든 분할 파일에 공통 지침을 반복 복제하는 방향으로 되돌리지 말 것.
+공통 지침은 01/N 중심, 이후 파일은 continuation contract가 원칙.
+
+
+----------------------------------------------------------------------
+K22. Lazy TXT materialization + bounded URL/Blob lifetime
+----------------------------------------------------------------------
+
+- rebuild TXT row는 makeText 기반 lazy 가능
+- list open 시 모든 text/blob/url을 미리 만들지 않음
+- 개별 다운로드 시 materialize
+- ZIP 처리 시 필요한 row를 처리 시점에 materialize
+- TXT_BLOB_URL_TTL_MS = 60000
+- URL revoke 후 lazy row blob 해제
+- eager caller backward compatibility 유지
+
+금지:
+수백 개 TXT의 전체 문자열/Blob/Object URL을 화면을 열 때 한꺼번에 장기 보유.
+
+
+----------------------------------------------------------------------
+K23. STORE ZIP 256 MiB preflight
+----------------------------------------------------------------------
+
+- TXT_ZIP_WARN_BYTES = 256*1024*1024
+- estimated total >= threshold일 때 confirm
+- 사용자가 거부하면 ZIP build 시작 금지
+- 경고는 기존 ZIP32 size/file guards를 대체하지 않음
+- 기존 WishStoreZip safety guard와 함께 유지
+
+
+----------------------------------------------------------------------
+K24. Turn-count recent fast-path
+----------------------------------------------------------------------
+
+- UI turn count는 source verification job이 아님
+- recent 50 stable frame에서 memoryCursor + observeCursor 모두 발견되면 exact recent-only count
+- 이 경우 observeFullRoomHistory/full-history path 생략
+- 하나라도 recent에 없으면 WishHistory cache/merge → 필요 시 physical Full Read
+
+금지:
+cursor가 recent에 없는데 추정치로 exact count 표시.
+
+
+----------------------------------------------------------------------
+K25. Baseline recent-first / physical-full-fallback
+----------------------------------------------------------------------
+
+적용 대상:
+- 통합 기억·인지 기준점
+- 진행형 자료 기준점
+- 기억 자동 baseline
+
+원칙:
+- recent 50 stable carrier로 정확한 anchor/baseline을 확정할 수 있으면 recent 사용
+- 불가능한 경우에만 physical Full Read
+- baseline 때문에 매번 whole-history를 읽지 않음
+
+금지:
+- recent에 기준점이 없는데 임의 추정
+- final SOURCE SHA verification까지 recent-only로 약화
+
+
+----------------------------------------------------------------------
+K26. NativeBundles rows non-persistent boundary
+----------------------------------------------------------------------
+
+runtime DB:
+- stored rows = []
+- rowWeights 유지
+- segments 유지
+- 기타 job metadata 유지
+
+memory cache:
+- 현재 실행 중 next job은 rows 사용 가능
+
+migration:
+- 구버전 runtime job에 rows 존재 시
+  rowWeights가 없으면 weightsOf(rows)로 1회 생성
+- rows=[]로 다시 저장
+
+rehydration:
+- run/resume 시 current verified source를 다시 준비
+- source hash/structure 확인
+- 검증 성공 뒤 source.rows를 job execution에 재주입
+
+UI:
+- rows가 비어 있어도 rowWeights/segments로
+  conversation count / source chars / repartition maximum 표시 가능
+
+금지:
+대형 source rows를 runtime DB에 다시 영속 저장.
+
+
+----------------------------------------------------------------------
+K27. Code/evidence-first diagnostic precedence
+----------------------------------------------------------------------
+
+WLOG.describe 판정 순서:
+1. 명시 error.code + structured diagnostic
+2. HTTP status / 명시 서비스 오류
+3. 제한된 legacy pattern
+4. unregistered fallback
+
+금지:
+광범위한 message regex 하나로 원인을 확정.
+특히 단어 “먼저”만으로 작업 조건 분류 금지.
+
+미등록 오류:
+- 원인을 꾸며내지 않음
+- “미등록 오류 / 미확정” 계열
+- 실제 발생 시점 evidence를 보존
+
+
+----------------------------------------------------------------------
+K28. Bounded runtime evidence / privacy boundary
+----------------------------------------------------------------------
+
+WLOG.fail 시 새 network/Full Read/대량 IndexedDB read 없이
+이미 메모리에 있는 bounded state만 수집.
+
+허용 예:
+- route/path
+- room hash
+- live rev/epoch
+- routeEpoch/localRestoreEpoch
+- pending/generation
+- aiUpdate/automaticMemory/automaticLore/memoryImport/localRestore/R31/NativeBundles/carrier-storage flags
+- operation/stage
+- error.diagnostic
+- masked bounded stack
+
+금지:
+- RP 본문
+- 기억 본문
+- API key/token
+- 이메일
+- 전체 URL
+- 진단 수집 실패가 원래 error를 가리는 구조
+
+
+----------------------------------------------------------------------
+K29. Room revision/save conflict safety
+----------------------------------------------------------------------
+
+assertRoomRevision mismatch:
+1. persisted/live top-level actual content 비교
+2. 비교 제외 metadata:
+   - _rev
+   - _epoch
+   - updatedAt
+   - _diagWriter
+3. actual content 완전 동일:
+   - metadata-only mismatch
+   - WISH_ROOM_REVISION_RESYNC notice
+   - live revision metadata만 persisted 값으로 resync
+4. actual content 차이:
+   - WISH_ROOM_REVISION_STALE
+   - changedFields / liveRev / storedRev / epoch pair / lastWriter 기록
+   - 자동 덮어쓰기 금지
+
+saveRoom stale:
+- WISH_ROOM_SAVE_STALE
+- 자동 resync 금지
+- 사용자의 아직 저장되지 않은 local edit를 묵살하지 않음
+
+금지:
+“revision이 다르면 무조건 persisted로 덮어쓰기”.
+
+
+----------------------------------------------------------------------
+K30. Writer / blocker / dedup / session-build scope
+----------------------------------------------------------------------
+
+writer:
+- 새 room 저장에 bounded _diagWriter
+- operation / stage / at / patch
+- revision actual-content comparison에서는 제외
+
+busy blocker:
+- ExternalBundles.blocker()
+- external-bundle / ai-update / automatic-memory / automatic-lore / memory-import / local-restore / rebuild / native-bundle 등
+- WISH_BUSY_BLOCKED diagnostic에 blocker/action 기록
+
+dedup:
+- 동일 세션에서 operation/code/message + 핵심 diagnostic state 기준 signature
+- 동일 state 반복 = new row 대신 count/lastAt 갱신
+- 다른 revision pair/blocker/session/code는 합치지 않음
+
+scope:
+- current session
+- same build previous session
+- old build
+를 UI/export에서 구분
+
+금지:
+1.5.3 과거 오류를 1.5.4 current issue처럼 표시.
+
+======================================================================
+4. upstream 1.5.x에서 이미 이식되어 1.5.4에서도 제거하면 안 되는 기능
+======================================================================
+
+----------------------------------------------------------------------
+P10-A. Firebase App Check
+----------------------------------------------------------------------
+
+현재 1.5.4에 있음:
+- @connect content-firebaseappcheck.googleapis.com
+- debug token setting
+- SDK dynamic import
+- debug token exchange
+- initialize once per app/name
+- Firebase AI call 전 getToken
+- failure hint/WLOG
+- background polling 없음
+
+진단 hardening 때문에 App Check request semantics를 바꾸지 말 것.
+
+
+----------------------------------------------------------------------
+P10-B. Vertex AI
+----------------------------------------------------------------------
+
+현재 1.5.4에 있음:
+- normalizeVertexLocation
+- provider aliases vertex / vertex-ai / vertex-sa
+- service account JSON parse
+- PKCS#8 private key import
+- RS256 JWT
+- OAuth access token
+- memory token cache
+- expiry refresh
+- auth invalidate/retry
+- global/regional endpoint
+- provider UI
+- WLOG/result settings
+
+주의:
+saveAiSettings()는 normalizeAiSettings 전체를 GM storage에 저장하는 upstream 구조.
+vertexServiceAccount private_key도 저장됨.
+
+후속 security hardening:
+- 별도 패치
+- save/load/backward compatibility regression 필요
+- unrelated patch에 즉흥 변경 금지
+
+
+----------------------------------------------------------------------
+P11. UI polish / lazy rendering
+----------------------------------------------------------------------
+
+현재 1.5.4에 있음:
+- quiet/danger buttons
+- desktop footer layout
+- log toolbar responsive
+- held queue UI
+- import people UI
+- secondary compare header
+- native bundle footer placement
+- cognition editor responsive
+- WLOG error card UI
+- details/openSet lazy rendering
+- log picker UI
+
+사용자판 보존:
+- Koofr help link
+- JSON repair/waiting dialogs
+- STORE ZIP UI
+- gesture-protected backdrop
+
+
+----------------------------------------------------------------------
+P12. Readable Memory Diff
+----------------------------------------------------------------------
+
+현재 1.5.4:
+- upstream readable tokenization
+- short equal bridge folding
+- low-similarity whole old/new paragraph fallback
+- 사용자판 one-sided size guard 유지
+
+반드시 유지:
+n+m > 10000 || n*m > 250000
+
+원작자 1.5.2처럼 matrix guard만 남기는 회귀 금지.
+
+======================================================================
+5. 1.5.4 regression-recovery에서 새로 추가된 항목
+======================================================================
+
+R54-01. 1/N rebuild package headers
+- 01/N common header
+- continuation header
+- package_id
+- final END marker
+- 전체 재구축 기존 인물 목록 참고 블록 보존
+
+R54-02. Lazy TXT
+- makeText
+- on-demand Blob
+- on-demand Object URL
+- 60초 release
+- lazy blob reference release
+
+R54-03. STORE ZIP integration
+- 현재 WishStoreZip 유지
+- lazy row를 ZIP 처리 시점에 materialize
+- 256 MiB estimated preflight confirm
+- old ZIP engine 미이식
+
+R54-04. Recent turn-count fast-path
+- both cursor recent-visible -> exact recent-only
+- otherwise WishHistory/full fallback
+
+R54-05. Baseline recent-first
+- 세 baseline helper에 recent stable frame 우선
+- 불충분하면 physical Full Read fallback
+
+R54-06. NativeBundles persistence reduction
+- runtime rows=[]
+- rowWeights persist
+- legacy rows migration
+- source rows rehydration
+- UI rowWeights/segments fallback
+
+R54-07. Version identity
+- @version/SCRIPT_VERSION 1.5.4
+- regression-recovery 후 diagnostic hardening에서 SCRIPT_STATUS=patching 명시
+
+======================================================================
+6. 1.5.4 diagnostic hardening에서 새로 추가된 항목
+======================================================================
+
+D54-01. WLOG schema extension
+기존 field 삭제 없이 후방호환으로 추가:
+- patch
+- status
+- session
+- stack
+- evidence
+- signature
+
+D54-02. Diagnostic precedence
+- code/diagnostic
+- HTTP/service
+- restricted patterns
+- unknown fallback
+
+D54-03. Unknown error evidence
+- 원인 임의 추정 금지
+- bounded current-memory evidence
+- masked bounded stack
+
+D54-04. Structured room codes
+- WISH_ROOM_REVISION_STALE
+- WISH_ROOM_SAVE_STALE
+- WISH_ROOM_REVISION_RESYNC notice
+
+D54-05. Safe revision resync
+- actual contents equal only
+- metadata-only resync
+- content mismatch = block
+
+D54-06. _diagWriter
+- central saveRoom
+- integrated memory/cognition atomic commit
+- lore+room atomic commit
+- compression-setting room commit 등 writer trace 확대
+
+D54-07. Busy blocker
+- WISH_BUSY_BLOCKED
+- blocker/action
+
+D54-08. State-aware dedup
+- same state -> count/lastAt
+- different revision/blocker/session/code -> separate
+
+D54-09. Historical scope
+- current session
+- same build previous session
+- old build
+
+D54-10. No new behavior in unrelated subsystems
+- no new polling
+- no new Full Read
+- no new network request
+- no provider change
+- no injection protocol change
+- no SOURCE logic weakening
+- no ZIP engine replacement
+
+======================================================================
+7. 원작자 1.5.2에서 그대로 가져오지 않은/되돌리면 안 되는 부분
+======================================================================
+
+X01. Full Read 50/page 전용
+X02. physical single-flight 없는 구조
+X03. >12M에서 giant deep snapshot 가능 경로
+X04. revision eviction 뒤 implicit 0 ABA 가능성
+X05. initial injection full stable join
+X06. externalStage full RP reserialization
+X07. weak external SOURCE SHA enforcement
+X08. no 45s validated source session
+X09. no cheap-first external import
+X10. no JSON repair / busy hold-resume
+X11. no injection prep cancel
+X12. sendAttempted before native send
+X13. WISH_DELTA_REJECTED one-shot fallback 없음
+X14. no STORE ZIP / zero-padding
+X15. less detailed Full Read diagnostics
+X16. simple backdrop click close
+X17. Memory Diff one-sided size guard 삭제
+X18. Koofr help link 삭제
+
+추가 1.5.4 금지:
+X19. old 1.3.40 RoomJobFSM/RoomJobGuard wholesale port
+X20. old WishSourceIdentity wholesale port
+X21. old Quick Injection v2 wholesale port
+X22. old prompts 전체 덮어쓰기
+X23. old UI 전체 덮어쓰기
+X24. old NativeBundles/Lore API/MemoryDiff wholesale port
+X25. old buildStoreTextZip/textZipLocalHeader ZIP engine 복귀
+X26. 모든 분할 TXT에 full common instructions 반복 삽입
+X27. lazy TXT를 eager-all Blob으로 되돌리기
+X28. NativeBundles rows를 runtime DB에 다시 저장
+X29. recent-only 결과가 정확하지 않은데 full fallback 제거
+X30. final SOURCE verification을 recent-only/cache-only로 약화
+X31. error.message 광범위 regex 추측을 다시 최우선으로 사용
+X32. revision mismatch에서 actual content 확인 없이 자동 overwrite
+X33. diagnostics 때문에 새 Full Read/network/polling 추가
+X34. patching 상태를 live soak 없이 FULL로 변경
+
+======================================================================
+8. 현재 정적 baseline
+======================================================================
+
+현재 BASE-154-PATCHING textual occurrence baseline:
+
+- setInterval( = 2
+- fetchAllRoomMessages( = 9
+- fetchRecentMessages( = 18
+- structuredClone( = 105
+- JSON.stringify( = 231
+- MutationObserver( = 4
+
+직전 1.5.3 보고서 baseline:
+- setInterval( = 2
+- fetchAllRoomMessages( = 11
+- fetchRecentMessages( = 17
+- structuredClone( = 104
+- JSON.stringify( = 227
+- MutationObserver( = 4
+
+해석:
+- setInterval 증가는 없음.
+- fetchAllRoomMessages textual occurrence는 11 -> 9.
+- fetchRecentMessages는 17 -> 18.
+- structuredClone은 104 -> 105.
+- JSON.stringify는 227 -> 231.
+- MutationObserver는 동일.
+
+주의:
+- textual count 변화 자체를 성능 PASS/FAIL로 판정하지 말 것.
+- 1.5.4는 recent-fast-path, revision comparison/evidence, rowWeights 등 새 코드가 있으므로
+  stringify/clone의 소규모 metadata 사용이 늘 수 있다.
+- whole RP/history/rows를 새로 clone/stringify하는지 위치를 확인하는 것이 핵심이다.
+- diagnostic patch가 Full Read caller를 새로 만들면 FAIL 후보.
+- setInterval 증가가 생기면 high-frequency polling 회귀 여부 우선 조사.
+
+======================================================================
+9. 검증 이력
+======================================================================
+
+[A. 1.5.3 기반 계약 검증 이력]
+
+파일:
+1.5.3 integration baseline
+
+검증:
+- UTF-8 BOM PASS
+- reread PASS
+- node --check PASS
+- static regression 66/66 PASS
+- Full Read fast300 PASS
+- transient retry PASS
+- Crack300 -> Contents50 PASS
+- Crack300 -> Contents50 -> Crack50 PASS
+- repeated cursor PASS
+- 1000 page guard PASS
+- 100000 msg guard PASS
+- cancel separation PASS
+- 50 subscribers -> physical 1 PASS
+- all-cancel + immediate retry race PASS
+- WishHistory small deep PASS
+- ~25MiB shallow PASS
+- >36MiB uncached PASS
+- frontier dirty PASS
+- ABA retention PASS
+- long-room representative path whole-history structuredClone 없음
+- WebSocket send ordering synthetic PASS
+- SOURCE SHA mismatch block PASS
+- source session reuse/stamp invalidation PASS
+- Vertex parse/cache/refresh/invalidate PASS
+- Firebase App Check exchange shape PASS
+- Memory Diff asymmetric guard PASS
+- STORE ZIP 125 files ~75MB PASS
+- STORE ZIP 300 files ~180MB PASS
+- ZIP cancel PASS
+
+이 검증은 1.5.4가 상속하는 기반 계약의 과거 검증 이력이다.
+
+
+[B. 1.5.4 regression-recovery 검증]
+
+계획 검토:
+- baseline fallback을 cache-first로 넓히면 기존 기준점 의미와 충돌 가능성 발견
+- 계획 수정:
+  recent 50 stable carrier가 정확하면 recent,
+  아니면 physical Full Read
+- lazy TXT는 old ZIP engine 대신 current WishStoreZip에 materialize만 접합
+- NativeBundles rows 비영속화는 run 시 source rows rehydration + rowWeights 보존
+- 01/N existing people reference 보존
+
+패치 후:
+- node --check PASS
+- static regression 54/54 PASS
+- lazy TXT/STORE ZIP dynamic unit PASS
+- makeText once PASS
+- 60s release PASS
+- lazy ZIP valid local header PASS
+- never-clicked lazy blob release PASS
+- eager ZIP compatibility PASS
+- ZIP cancel PASS
+- diff context 3 기준 22 hunks, 계획 범위 국한 확인
+- UTF-8 BOM PASS
+- SHA-256 f2becd573d02a4efa9eaaec82f206bada3477e97318c8886094fa4e187fd9a41
+- bytes 1,893,495
+
+
+[C. diagnostic hardening 계획 사전 회귀]
+
+계획 회귀:
+20/20 PASS
+
+포함:
+- patching 상태
+- live soak 전 FULL 금지
+- message-guess 진단 개편
+- unknown evidence
+- privacy boundary
+- broad /먼저/ 제거
+- revision stale/save stale/busy blocker codes
+- safe resync 조건
+- actual content mismatch overwrite 금지
+- stale save auto-resync 금지
+- writer trace
+- state-aware dedup
+- historical scope
+- no extra network/Full Read
+- old row backward compatibility
+- existing 1.5.4 features preserve
+
+현재 1947 source:
+- 해당 diagnostic hardening 코드가 실제 반영돼 있음
+- SCRIPT_STATUS=patching
+
+중요:
+현재 이용 가능한 작업기록 기준으로,
+diagnostic hardening 이후의 “FULL whole-script live regression 완료”를 별도 증거 없이 선언하지 말 것.
+
+======================================================================
+10. 아직 남은 live / FULL 승격 전 검증
+======================================================================
+
+실제 로그인된 Crack + Tampermonkey에서 확인할 항목:
+
+1. 300/page API 장기 안정성
+2. tab/room navigation + restore race
+3. Full Read cancel -> immediate retry
+4. actual WebSocket send failure/retry/reroll
+5. Manual AI copy/paste/file flow
+6. 수시간 browser memory accumulation
+7. 12M~36M shallow cache actual GC/render
+8. >36M uncached repeated Full Read actual cost
+9. 180MB 이상 STORE ZIP responsiveness
+10. 256 MiB warning 실제 동작과 cancel path
+11. lazy TXT 개별/10개/ZIP 장시간 반복
+12. 1/N package를 외부 AI가 실제로 연속 패키지로 처리하는지
+13. recent turn-count exact path / older-cursor fallback
+14. 3 baseline helper recent-first / physical fallback
+15. NativeBundles reload/resume 후 rows rehydration
+16. legacy persisted rows migration
+17. metadata-only room revision resync
+18. actual-content room revision mismatch block
+19. WISH_ROOM_SAVE_STALE 실제 stale write block
+20. busy blocker 실제 action별 분류
+21. current-session / previous-session / old-build scope UI
+22. state-aware dedup count/lastAt
+23. unknown error evidence/stack가 최초 실패 분석에 충분한지
+24. 진단 수집이 새 network/Full Read/polling을 실제로 만들지 않는지
+
+FULL 승격 조건:
+- 위 실사용에서 핵심 새 경로의 오류가 재현되지 않거나
+- 재현된 오류가 증거 기반 최소 패치로 수정되고
+- 전체 회귀검사가 다시 통과하고
+- 사용자가 FULL 승격을 명시적으로 승인/요청할 것
+
+======================================================================
+11. 다음 패치 작업 절차
+======================================================================
+
+STEP 1. BASE 확인
+- 현재 전달받은 1.5.4 파일의 @version / SCRIPT_VERSION / SCRIPT_PATCH / SCRIPT_STATUS 확인
+- bytes/lines/SHA 계산
+- BASE-154-PATCHING과 다르면 diff부터 조사
+
+STEP 2. 작업 분류
+다음 중 무엇인지 먼저 분류:
+- live-soak bug fix
+- diagnostic correctness fix
+- 1.5.4 regression-recovery bug fix
+- provider compatibility
+- new upstream merge
+- FULL 승격 전 regression
+- UI-only change
+
+STEP 3. 영향계약 표 작성
+수정 전에 K01~K30 중 영향 받는 계약을 표시.
+최소:
+- direct impact
+- no impact
+- regression risk
+를 구분.
+
+STEP 4. long-room cost 질문
+- whole history를 새 string으로 만들까?
+- rows를 다시 DB에 저장할까?
+- whole-history structuredClone이 생길까?
+- 전체 rows JSON.stringify가 생길까?
+- Full Read caller가 늘까?
+- timer/polling이 늘까?
+- final SOURCE verification이 recent/cache로 약해질까?
+하나라도 yes면 설계 재검토.
+
+STEP 5. revision safety 질문
+- metadata mismatch와 actual content mismatch를 구분하는가?
+- saveRoom stale write를 자동 overwrite하지 않는가?
+- changedFields/lastWriter evidence를 잃지 않는가?
+
+STEP 6. diagnostic safety 질문
+- code/diagnostic보다 message regex가 앞서지 않는가?
+- unknown error에 가짜 cause를 만들지 않는가?
+- evidence에 RP/API key/token/full URL을 넣지 않는가?
+- diagnostics 수집 때문에 network/Full Read가 생기지 않는가?
+
+STEP 7. syntax
+- node --check
+
+STEP 8. static baseline
+현재 baseline과 비교.
+증가 위치 전수 확인:
+- setInterval
+- fetchAllRoomMessages
+- fetchRecentMessages
+- structuredClone
+- JSON.stringify
+- MutationObserver
+
+STEP 9. subsystem regression
+최소:
+- Full Read
+- single-flight
+- WishHistory 12M/36M
+- SOURCE SHA/session
+- injection cancel
+- WebSocket ordering
+- Delta fallback
+- JSON repair/hold-resume
+- ZIP
+- 1/N package
+- lazy TXT release
+- recent turn-count/baseline
+- NativeBundles rehydration
+- room revision/save conflict
+- busy blocker
+- diagnostic dedup/scope
+- backdrop
+- Memory Diff
+- provider/auth if touched
+
+STEP 10. current-status 판단
+- live soak 전에는 SCRIPT_STATUS=patching 유지
+- 숫자 @version만 보고 FULL로 바꾸지 않음
+- FULL 승격은 별도 작업으로 처리
+
+STEP 11. final artifact
+소스 패치 작업일 경우:
+- TXT 1개
+- UTF-8 BOM
+- non-zero
+- exact reread
+- actual patch timestamp
+- status 명시
+- SHA-256 계산
+- syntax/regression 결과 보고
+
+======================================================================
+12. 수정 우선순위
+======================================================================
+
+P0 — correctness / integrity
+- SOURCE SHA
+- final fresh verification
+- wrong-room/double apply
+- room revision actual-content conflict
+- stale save overwrite
+- send ordering
+- stale/ABA
+- cancel race
+
+P0 — ultra-long-room catastrophic cost
+- whole-history deep clone
+- giant join
+- repeated full stringify
+- duplicate physical Full Read
+- NativeBundles rows re-persistence
+- eager-all rebuild TXT Blob materialization
+
+P1 — recoverability / diagnostics
+- JSON repair
+- hold-resume
+- progress/cancel
+- code/evidence correctness
+- blocker/writer/revision evidence
+- user-visible failure reason
+
+P1 — provider compatibility
+- Firebase/Vertex API change
+- auth expiry/retry
+
+P2 — output UX
+- 1/N labels
+- download naming
+- ZIP warnings
+- layout
+
+P2 — cosmetic UI
+- spacing
+- visual consistency
+
+원칙:
+작은 UI 이득을 위해 P0 contract를 건드리지 말 것.
+
+======================================================================
+13. 알려진 trade-off / 기술부채
+======================================================================
+
+T01. 코드 복잡도
+- 1.5.4는 1.4.1 + upstream 1.5.x + 1.5.4 recovery + diagnostic hardening을 합친 상태.
+- future merge 비용 증가.
+
+T02. >36M uncached
+- 의도적 memory safety 선택.
+- repeated physical read cost 존재.
+
+T03. STORE ZIP
+- 무압축.
+- CPU 부담을 줄이는 대신 파일 크기 자체는 감소하지 않음.
+- 256 MiB preflight는 경고이지 hard cap 아님.
+
+T04. strict source mismatch
+- 편의보다 correctness 우선.
+- RP 변경 후 old external result 재사용 제한.
+
+T05. Vertex service-account persistence
+- private key 포함 JSON이 GM storage에 저장.
+- upstream 1.5.2 구조 유지.
+- 별도 security hardening 후보.
+
+T06. Lazy TXT
+- 전체 비용 제거가 아니라 materialization 시점을 늦춤.
+- 실제 다운로드/ZIP에서는 text/blob 필요.
+
+T07. NativeBundles rehydration
+- DB 중복 저장은 줄지만 resume 시 current source 재준비/검증 비용 존재.
+- source integrity와 교환한 의도적 trade-off.
+
+T08. Recent baseline
+- 정상 recent case 비용은 줄지만
+- recent에서 정확한 anchor를 찾지 못하면 physical Full Read가 여전히 필요.
+
+T09. Diagnostic metadata
+- error row가 더 풍부해져 저장 필드 수 증가.
+- bounded/privacy-safe 유지 필요.
+
+T10. Current patching status
+- 1.5.4 숫자 버전은 이미 사용하지만 FULL 완료판은 아님.
+- 배포/파일명/진단 scope에서 patching 상태를 유지해야 혼동 감소.
+
+======================================================================
+14. 절대 하지 말 것
+======================================================================
+
+- 원작자 1.5.2 전체를 BASE-154 위에 덮어쓰기
+- 사용자 1.4.1 전체를 다시 덮어쓰기
+- 사용자 1.5.3으로 BASE 롤백 후 1.5.4 변경을 잊기
+- old 1.3.40 RoomJobFSM/RoomJobGuard wholesale port
+- WishSourceIdentity old implementation wholesale port
+- old Quick Injection v2 전체 이식
+- old prompt 전체 덮어쓰기
+- old UI 전체 이식
+- old NativeBundles/Lore API/MemoryDiff 전체 복사
+- old ZIP engine 복귀
+- 1/N 모든 파일에 공통 지침 중복 삽입
+- lazy TXT 제거 후 eager-all Blob 생성
+- NativeBundles rows runtime DB 재영속화
+- recent-only로 exact하지 않은 count/baseline 추정
+- final SOURCE SHA/final apply verification을 cache-only/recent-only로 변경
+- error.message 단어 매칭을 code/evidence보다 우선
+- 미등록 오류 원인을 임의 확정
+- revision mismatch에서 actual content 비교 없이 overwrite
+- saveRoom stale를 자동 resync
+- 진단용 새 Full Read/network/background polling 추가
+- 개인정보/RP 본문/API key/token을 evidence에 저장
+- 실환경 미검증 항목을 PASS 선언
+- patching source를 사용자 승인 없이 FULL로 승격
+- 문제 재현 없이 core hot path를 계속 speculative optimization
+
+======================================================================
+15. 다음 AI가 먼저 해야 할 것
+======================================================================
+
+사용자가 “다음 패치 진행”이라고 하면:
+
+1. BASE-154-PATCHING 실제 파일을 직접 읽는다.
+2. @version / SCRIPT_VERSION / SCRIPT_PATCH / SCRIPT_STATUS 확인.
+3. bytes / lines / SHA-256 계산.
+4. 이 인수인계의 source identity와 비교.
+5. 사용자의 증상/요청이 어느 subsystem인지 분류.
+6. K01~K30 영향표 작성.
+7. 실제 증거가 있는 문제만 최소 수정.
+8. 수정 전과 후의 static baseline 비교.
+9. 관련 subsystem regression + 전체 syntax 검사.
+10. 1.5.4 new paths:
+   - 1/N
+   - lazy TXT
+   - ZIP warning
+   - recent baseline
+   - NativeBundles rows
+   - revision/save diagnostics
+   - busy blocker
+   - dedup/scope
+   를 해당되는 만큼 반드시 재검사.
+11. live 검증이 없으면 FULL 판정 금지.
+12. 결과 보고 시:
+   - 무엇을 바꿨는지
+   - 왜 바꿨는지
+   - 어떤 contract를 보존했는지
+   - 어떤 test를 실제로 통과했는지
+   - 무엇이 아직 live 미검증인지
+   - current status가 patching인지 full인지
+   를 분리해 보고.
+
+======================================================================
+16. 다음 작업자에게 전달할 한 문장
+======================================================================
+
+“현재 직접 BASE는 WRMC 1.5.4 임시·patching diagnostic-hardening이다. 원작자 1.5.2의 App Check/Vertex/UI/Memory Diff와 사용자 1.4.1~1.5.3의 Full Read/WishHistory/SOURCE/single-flight/cancel/JSON repair/STORE ZIP 계약을 보존하면서, 1.5.4에서 1/N package·lazy TXT·256 MiB ZIP warning·recent turn-count/baseline·NativeBundles rows 비영속화와 code/evidence-first revision/save/busy 진단을 추가했다. 앞으로는 이 1.5.4를 유지한 채 실제 live 증거가 있는 문제나 새 upstream delta만 최소 패치하고, 원작자판·1.4.1·1.3.40을 통째로 덮어쓰지 말며, live soak 전에는 FULL로 승격하지 마라.”
+
+======================================================================
+검토내용
+======================================================================
+
+- 작업지시내용 = 기존 1.5.3 AI용 인수인계 보고서의 양식과 역할을 기준으로, 원작자 1.5.2 대비 현재 사용자 1.5.4의 실제 코드 계통·회귀계약·새 기능·금지사항·다음 패치 절차를 반영한 AI용 인수인계 보고서를 작성. 1.5.4 본체 파일은 이번 작업에서 수정·생성하지 않음.
+- 작업수행결과 = 기존 K01~K20 장기방/무결성 계약을 1.5.4에 맞게 갱신하고, baseline-setting recent-first 변경을 K08/K25에 반영함. 추가로 K21~K30으로 1/N package, lazy TXT, 256 MiB ZIP preflight, recent turn-count, NativeBundles rows 비영속화, code/evidence-first diagnostics, bounded evidence, revision/save conflict safety, writer/blocker/dedup/session scope를 문서화함. 1.5.4 regression-recovery 검증과 diagnostic hardening 계획검증을 분리 기록하고 current status=patching을 명시함.
+- 지침대조결과 = 기존 1.5.3 보고서의 단순 문자열 치환이 아니라 실제 1.5.4 변경내용과 충돌한 기존 규칙을 수정함. 원작자 1.5.2/사용자 1.4.1/사용자 1.5.3/현재 1.5.4의 역할을 분리하고, BASE-154-PATCHING을 다음 직접 BASE로 지정함. 실환경 미검증 상태를 PASS/FULL로 과장하지 않음.
+- 임의수행 여부 = userscript 소스 수정·생성·FULL 승격 없음. 보고서 작성만 수행.
+- 누락 여부 = source identity, lineage, K contracts, upstream inherited features, 1.5.4 recovery/diagnostic delta, reject 목록, static baseline, test history, live tasks, patch procedure, priority, trade-off, 금지사항을 포함함.
+- 최종판정 = 이상 없음
+- 불일치 상세 = 없음
